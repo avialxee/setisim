@@ -6,8 +6,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
-from os import path, makedirs
+from os import path, makedirs, remove, getcwd
+import glob
+from shutil import rmtree
 
+def __clean_tmp(wd,cimagename):
+    
+    filelist = glob.glob(path.join(wd, cimagename+'.*'))
+    for f in filelist:
+        try:
+            rmtree(f)
+        except OSError:
+            remove(f)
 
 def save_fig(plt, fig, kind='base64', output='output.jpg'):
     
@@ -44,12 +54,13 @@ def save_fig(plt, fig, kind='base64', output='output.jpg'):
         return newPath
 
 
-
+cwd = getcwd()
 csource = str(Path.home()) + '/CASA/tests/test_d/sis14-working/sis14_twhya_selfcal.ms' # ms file as visibility input
 csource_stem = str(Path(csource).stem) # filename for p1 creations
-    
-work_folder = str(Path.home()) + '/.casa/tmp/'+csource_stem # all creations inside this
 
+work_folder = str(Path.home()) + '/CASA/tmp/'+csource_stem+'/' # all creations inside this
+if not path.exists(work_folder):
+            makedirs(work_folder)
 csource_smoothed = work_folder+csource_stem+'_p1.ms' # created by p1
 cimagename=str(Path(csource_smoothed).stem) # created by p1 during tclean
 
@@ -128,3 +139,6 @@ ax2.set_xlabel('Right Ascension')
 ax2.set_ylabel('Declination')
 ax2.set_title(f'{niter} iter of tclean\n {model_file}')
 save_fig(plt, fig, kind='jpg')
+
+__clean_tmp(work_folder, '*')
+__clean_tmp(cwd, cimagename)
