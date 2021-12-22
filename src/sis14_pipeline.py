@@ -10,7 +10,7 @@ from os import path, makedirs, remove, getcwd
 import glob
 from shutil import rmtree
 
-def __clean_tmp(wd,cimagename):
+def __clear_tmp(wd,cimagename):
     
     filelist = glob.glob(path.join(wd, cimagename+'.*'))
     for f in filelist:
@@ -90,7 +90,8 @@ tclean(vis=csource_smoothed,
        deconvolver='hogbom',
        imsize=[250,250],
        cell=['0.08arcsec'],
-       mask='box [ [ 100pix , 100pix] , [150pix, 150pix ] ]',
+       usemask='auto-multithresh',
+       #mask='box [ [ 100pix , 100pix] , [150pix, 150pix ] ]',
        weighting='briggs',
        robust=0.5,
        threshold=threshold,
@@ -140,5 +141,5 @@ ax2.set_ylabel('Declination')
 ax2.set_title(f'{niter} iter of tclean\n {model_file}')
 save_fig(plt, fig, kind='jpg')
 
-__clean_tmp(work_folder, '*')
-__clean_tmp(cwd, cimagename)
+__clear_tmp(work_folder, '*')
+__clear_tmp(cwd, cimagename)
