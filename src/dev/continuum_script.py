@@ -84,7 +84,7 @@ tclean(vis=csource_smoothed,
        imagename=cimagename,
        field=split_field, # split had the field=5 become 0
        spw='',
-       specmode='mfs',
+       specmode='mfs', # mfs for continuum,
        perchanweightdensity=True,
        gridder='standard',
        deconvolver='hogbom',
