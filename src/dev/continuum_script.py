@@ -120,13 +120,12 @@ w.wcs.cdelt = csys.increment()['numeric'][0:2]*rad_to_deg
 w.wcs.crval = csys.referencevalue()['numeric'][0:2]*rad_to_deg
 w.wcs.ctype = ['RA---SIN', 'DEC--SIN']
 
-fig = plt.figure(figsize=(20, 20))
+fig = plt.figure(figsize=(20, 10))
 ax1 = plt.subplot(1, 2, 1, projection=w)
 p1 = int(pix.shape[0]*0.25)
 p2 = int(pix.shape[0]*0.75)
 
 im1 = ax1.imshow(pix.transpose(), origin='lower',  cmap=plt.cm.viridis)
-plt.colorbar(im1, ax=ax1)
 ax1.set_xlabel('Right Ascension')
 ax1.set_ylabel('Declination')
 ax1.set_title(f'{niter} iter of tclean\n {res_file}')
@@ -135,7 +134,7 @@ p1 = int(pix.shape[0]*0.25)
 p2 = int(pix.shape[0]*0.75)
 
 im2 = ax2.imshow(pix_psf[p1:p2,p1:p2].transpose(), origin='lower',  cmap=plt.cm.viridis)
-plt.colorbar(im2, ax=ax2)
+plt.colorbar(im2, ax=[ax1,ax2])
 ax2.set_xlabel('Right Ascension')
 ax2.set_ylabel('Declination')
 ax2.set_title(f'{niter} iter of tclean\n {model_file}')
