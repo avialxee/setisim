@@ -1,6 +1,9 @@
 casatools==6.4.0.16
 casatasks==6.4.0.16
 casadata==2021.10.11
+casaplotms
+casaviewer
 matplotlib
 astropy
 numpy
+pyvirtualdisplay
