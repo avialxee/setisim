@@ -20,12 +20,17 @@ setup(
                  ],
     long_description=desc,
     long_description_content_type = "text/markdown",
-    install_requires=["astropy", "matplotlib",
-                    "numpy", "casatasks", "casatools", "casadata"
+    install_requires=["astropy", "matplotlib", "numpy", "pyvirtualdisplay",
+     "casatasks", "casatools", "casadata", "casaplotms", "casaviewer"
                       ],
     extras_require = {
         "dev" : ["pytest>=3.7",
         ]
-    }
+    },
+     entry_points={ 
+        "console_scripts": [
+            "setisim=setisim:cli",
+        ],
+    },
 
 )

@@ -1,11 +1,10 @@
-#!/datax/scratch/AMITY_INDIA/avi/github/casadev/bin/python3.8
 import os
 import argparse
 
 
 
 
-parser = argparse.ArgumentParser('visfile',description="""SETI synthesis imaging pipeline
+parser = argparse.ArgumentParser('setisim',description="""SETI synthesis imaging pipeline
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-F', '--fitsfilename', type=str, help='input FITS filename')
 parser.add_argument('-t', '--timerange', type=str, help='input timerange for ex: 5:04:12.8~15:04:27.8')
