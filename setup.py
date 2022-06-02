@@ -29,7 +29,7 @@ setup(
     },
      entry_points={ 
         "console_scripts": [
-            "setisim=setisim:cli",
+            "setisim=setisim.cli:cli",
         ],
     },
 
