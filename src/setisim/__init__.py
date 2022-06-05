@@ -22,7 +22,7 @@ import glob
 from shutil import rmtree
 from matplotlib import rcParams, rc
 import os
-from casatools import ms, msmetadata
+from casatools import ms, msmetadata, table
 from pyvirtualdisplay import Display
     
 

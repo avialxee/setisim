@@ -335,5 +335,20 @@ def cli():
     if pp==8:
         clearcal(vis=visfile)
         flagdata(vis=visfile,mode='unflag', field='', spw='', antenna='', timerange='')
+
+    if pp==88:
+        imagename=Path(visfile).stem+'.sc0'
+        tclean(
+            visfile,
+            imagename=imagename,
+            datacolumn='corrected',
+            imsize=250, cell='0.4arcsec', 
+            pblimit=-0.1,
+            gridder='standard',
+            deconvolver='mtmfs', 
+            interactive=False, 
+            weighting='briggs', robust=0.2, savemodel='none',
+            niter=1000, threshold='20.5Jy',
+        )
 if __name__=='__main__':
     cli()
