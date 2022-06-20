@@ -7,10 +7,9 @@ def flagger(vis, **kwargs):
     visd={
         'f0':Path(vis).stem+'f0.MS',
         'f1':Path(vis).stem+'f1.MS',
+        'f1c0':Path(vis).stem+'f1c0.MS',
+        'f1c0c':Path(vis).stem+'f1c0.corrected.MS',
         'f2':Path(vis).stem+'f2.MS',
-        'f2c0':Path(vis).stem+'f2c0.MS',
-        'f2c0c':Path(vis).stem+'f2c0.corrected.MS',
-        'f3':Path(vis).stem+'f3.MS',
     }
     params={}
     params={'plots':False, 'flagsummary':False}
@@ -39,23 +38,24 @@ def flagger(vis, **kwargs):
 
     m="""# deriving phase solution to flag badant"""
     print(m)
-    split(visd['f2'],visd['f2c0'], datacolumn='data')
-    sol_res=solint_p(visd['f2c0'])
+    split(visd['f1'],visd['f1c0'], datacolumn='data')
+    sol_res=solint_p(visd['f1c0'])
     tab,med=sol_res['tab'],sol_res['med']
     os.system(f'rm -rf {tab["p_96"]}')
-    gaincal(visd['f2c0'], caltable=tab["p_96"], 
+    gaincal(visd['f1c0'], caltable=tab["p_96"], 
         solint='96s',refant='C00',calmode='p',gaintype='T', minsnr=med)
-    applycal(visd['f2c0'], gaintable=tab['p_96'])
-    split(visd['f2c0'], visd['f2c0c'])
-    if params['plots']:plotd(visd['f2c0c'])
-    
-    m="""# using flaggable antennas to flag each scan for badant"""
-    print(m)
-    badant=fs['flaggable'].keys()
+    applycal(visd['f1c0'], gaintable=tab['p_96'])
+    split(visd['f1c0'], visd['f1c0c'])
+    if params['plots']:plotd(visd['f1c0c'])
+    fs = flagsummary(visd['f1c0c'])
 
-    split(visd['f2c0c'],visd['f3'], datacolumn='data')
+    m="""# using flaggable antennas to flag each scan for badant"""
+    badant=','.join(fs['flaggable'].keys())
+    print(f'{m}:{badant}')
+    
+    split(visd['f1c0c'],visd['f2'], datacolumn='data')
     for scan in ['1','2','3']:
-        init_flag(visd['f3'], badant=','.join(badant), extend=True, scan=scan)
-    if params['flagsummary']:flagsummary(visd['f3'])
-    if params['plots']:plotd(visd['f3'])
-    print(f'flagged data:{visd["f3"]}')
+        init_flag(visd['f2'], badant=badant, extend=True, scan=scan)
+    if params['flagsummary']:flagsummary(visd['f2'])
+    if params['plots']:plotd(visd['f2'])
+    print(f'flagged data:{visd["f2"]}')
