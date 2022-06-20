@@ -44,6 +44,9 @@ def flagger(vis, **kwargs):
     os.system(f'rm -rf {tab["p_96"]}')
     gaincal(visd['f1c0'], caltable=tab["p_96"], 
         solint='96s',refant='C00',calmode='p',gaintype='T', minsnr=med)
+    
+    m="""# applying phase solution to flag badant"""
+    print(m)
     applycal(visd['f1c0'], gaintable=tab['p_96'])
     split(visd['f1c0'], visd['f1c0c'])
     if params['plots']:plotd(visd['f1c0c'])
