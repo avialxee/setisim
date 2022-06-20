@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 from os import path, makedirs
 import matplotlib.pyplot as plt
+from scipy import stats
+    
 
 def solint_p(vis,**kwargs):
     params={'read':False}
@@ -21,7 +23,7 @@ def solint_p(vis,**kwargs):
         'p_96':tablefolder+'solint_96.tb',
     }
     if not params['read']:
-        os.system(f"rm -rf {tab['p_3']}* {tab['p_6']}* {tab['p_12']}* {tab['p_24']}* {tab['p_48']}* {tab['p_96']}*")
+        os.system(f"rm -rf {' '.join(tab.values())}")
         gaincal(vis=vis,caltable=tab['p_3'],
             solint='int',refant='C00',calmode='p',gaintype='T', minsnr=0)
         gaincal(vis=vis,caltable=tab['p_6'],
@@ -65,12 +67,10 @@ def solint_p(vis,**kwargs):
     plt.legend( loc='upper right' )
     plt.xlabel( 'SNR' )
     
-    
-    from scipy import stats
     med=int(np.median( snr_6s ) ) # TODO: change snr_6s to time resolution
     print( f"P(<={med}) = {stats.percentileofscore( snr_6s, med )}, 6s")
     print( f"P(<={med}) = {stats.percentileofscore( snr_12s, med )}, 12s")
     print( f"P(<={med}) = {stats.percentileofscore( snr_24s, med )}, 24s")
     print( f"P(<={med}) = {stats.percentileofscore( snr_48s, med )}, 48s")
     print( f"P(<={med}) = {stats.percentileofscore( snr_96s, med )}, 96s")
-    return tab
+    return {'tab':tab, 'med':med}

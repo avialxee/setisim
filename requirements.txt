@@ -7,3 +7,4 @@ matplotlib
 astropy
 numpy
 pyvirtualdisplay
+scipy

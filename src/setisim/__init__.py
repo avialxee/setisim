@@ -442,7 +442,7 @@ def init_flag(csource, **kwargs):
     params={'reset':False, 
             'quackinterval':10.0, 
             'quackmode':'beg', 'badant':'', 'badchan':'','clip':[0,50],'refant':'C00',
-            'scan':'',
+            'scan':'', 'extend':False
                    }
     params.update(kwargs)
     if params['reset']:
@@ -458,7 +458,37 @@ def init_flag(csource, **kwargs):
              flagbackup=False, action='apply')
     if params['badant']: flagdata(vis=csource, antenna=str(params['badant']),action='apply')
 #     flagdata(vis=csource, mode='tfcrop', flagbackup=True, action='apply', extendpols=True, extendflags=True)
-    flagdata(vis=csource, mode='extend', growfreq=80.0, growtime=60.0, action='apply', extendpols=True, extendflags=True)
+    if params['extend']:flagdata(vis=csource, mode='extend', growfreq=80.0, growtime=60.0, action='apply', extendpols=True, extendflags=True)
+
+def flagsummary(vis):
+    fsummary = flagdata(vis, mode='summary')
+    sof=fsummary.keys()
+    fgen=['name','type', 'total', 'flagged']
+    totflag=np.round((fsummary['flagged']/fsummary['total'])*100,2)
+    print(f"{fsummary['name']}\n-----\nTotal flagged:{totflag}%")
+    flaggable={}
+    for s in sof:
+
+        if s in fgen:
+            pass
+        else:
+            print(f'\n{s}:\n')
+            for k in fsummary[s]:
+                v=fsummary[s][k]
+                perc = np.round((fsummary[s][k]['flagged']/fsummary[s][k]['total'])*100,2)
+
+                if perc>totflag and s=='antenna':
+                    flaggable[k]=perc
+
+                print(f"{k}:{perc}%")
+    antmax = max(flaggable, key=flaggable.get)
+    ant3sigma=np.round(float(totflag)+((float(flaggable[str(antmax)])-float(totflag))/3),2)
+    print(f'antenna 3 sigma : {ant3sigma}')
+    for ant,perc in flaggable.items():
+        if perc>ant3sigma:
+            print(f'flaggable antenna:{ant}')
+    # print(f'flaggable antenna:{antmax}\n {flaggable}')
+    return {'flaggable':flaggable}
 
 def selfcal_model(calibrated_target, goodchans='0:500~600', ref_ant='C00'):
     ctarget_stem = str(Path(calibrated_target).stem)
@@ -638,9 +668,9 @@ def plotd(visfile, **kwargs):
     for fk,fv in fieldl.items():
         fieldl[str(fk)]['scans']=[k.replace('scan_', '') for k,v in metadata.items() if ('scan_' in k) and (v['0']['FieldId']==int(fk))]
     metadata.update({'fieldl':fieldl, 'scanl':scanl})
-    params={'spw':f'0:{int(nchan*0.4)}~{int(nchan*0.6)}',
+    params={'spw':'',#f'0:{int(nchan*0.4)}~{int(nchan*0.6)}',
     'avgchannel' :str(nchan),
-    'uvrange':'2000~8000',
+    'uvrange':'',
     'antenna':'C00', 'scan':'', 'corr':'',
     'xaxis':[''], 'yaxis':['']}
     params.update(kwargs)
@@ -650,11 +680,11 @@ def plotd(visfile, **kwargs):
     scanlist = params['scan'] or scanl.keys()
     comb={'amp':{'freq':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
              'time':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''},
-             'uvdist':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
+             'uvwave':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
             }, 
       'phase':{'freq':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
                'time':{'averagedata':True,'avgtime':'', 'avgbaseline':True, 'avgchannel':nchan},
-               'uvdist':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':nchan},
+               'uvwave':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':nchan},
                'amp':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''}
               },
      }
