@@ -15,7 +15,7 @@ def flagger(vis, **kwargs):
     params={}
     params={'plots':False, 'flagsummary':False}
     params.update(kwargs)
-    os.system(f"rm -rf {' '.join(visd.values())}")
+    os.system(f"rm -rf {'* '.join(visd.values())}")
 
     m ="""# quacking, shadowing, clipping"""
     print(m)
