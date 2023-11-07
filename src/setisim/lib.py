@@ -45,8 +45,10 @@ class  Lib:
         
     
     def gen_listobs(self):
-        from casatasks import listobs
-        if self.solve:listobs(self.config.vis, listfile=self.config.listfile, overwrite=True, verbose=True)
+        
+        if self.solve:
+            from casatasks import listobs
+            listobs(self.config.vis, listfile=self.config.listfile, overwrite=True, verbose=True)
         else: self._sanitized_stepslist([('listobs','gen_listobs')])
 
     def selfcal(self):
@@ -59,7 +61,7 @@ class  Lib:
     def init_flag(self,  flagbackup=False, name='i'):   
         """
         """
-        F                   =   FlagData( self.config.flagfile, self.config.refant, flagbackup=flagbackup, action='apply', name=name)
+        F                   =   FlagData( self.config, flagbackup=flagbackup, action='apply', name=name)
         F.quacking          =   True
         F.quackinterval     =   self.config.quackinterval or 10.0
         F.quackmode         =   self.config.quackmode or 'beg'
@@ -68,8 +70,10 @@ class  Lib:
         F.clip              =   self.config.clipminmax or [0,50]
 
         F.inpfile           =   self.config.flagfile
-        from casatasks import flagdata
-        if self.solve:F.flag(flagdata)
+        
+        if self.solve:
+            from casatasks import flagdata
+            F.flag(flagdata)
         else: self._sanitized_stepslist([(F.flag,'flagdata')])
         
 

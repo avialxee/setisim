@@ -6,10 +6,10 @@ class FlagData:
     [ ]     :   tfcrop and rflag should be applied to supplied scans
     [ ]     :   inpfile to run only one instance of flagdata.
     """
-    def __init__(self, vis='', inpfile='', refant='C00',flagbackup=False, action='apply', name=''):
-        self.vis            =   vis
-        self.refant         =   refant
-        self.inpfile        =   inpfile
+    def __init__(self, config, flagbackup=False, action='apply', name=''):
+        self.vis            =   config.vis
+        self.refant         =   config.refant
+        self.inpfile        =   config.flagfile
         self.flagbackup     =   flagbackup
         self.action         =   action
         self.name           =   name

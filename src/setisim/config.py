@@ -22,7 +22,7 @@ output_images           =   'output/'
 bandpass_plots          =   'bandpass/'
 gain_plots              =   'gain/'
 listfile                =   'listobs.txt'
-
+flagfile                =   'flag.txt'
 # -------- Flagging --------------------------------
 quackinterval           =   10.0
 quackmode               =   'beg'
