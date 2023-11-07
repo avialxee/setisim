@@ -4,7 +4,8 @@ import argparse, subprocess
 from pathlib import Path
 from importlib.metadata import version
 from datetime import datetime
-
+from pprint import pprint
+from textwrap import dedent
 pipedir = str(Path.home())+'/.setisim/'
 
 c={"x":"\033[0m","g":"\033[32m", "r":"\033[31m", "b":"\033[34","c":"\033[36m","w":"\033[0m"}
@@ -15,7 +16,7 @@ def read_inputfile(folder,inputfile='config.inp'):
     """
     from setisim.config import config
     params = config
-    input_folder= None
+    input_folder= ''
     files=glob.glob(f'{folder}/*{inputfile}',recursive=True)
     if not files: files=glob.glob(f'{folder}/*/*{inputfile}',recursive=False)
     if not files: files=glob.glob(f'{folder}/*/*/*{inputfile}',recursive=False)
@@ -80,14 +81,19 @@ def get_functionnames(tree=None, modulfile=None, match='', classes=True):
 # -------------------------  Inspired from rPicard by @Michael Janssen (https://bitbucket.org/M_Janssen/picard)
 def pipeline_step(telescope='GMRT', dict=False):
     steps,_help={},''
-    from setisim.lib import Lib as l
-    steps[1]=(str(l.init_flag.__name__), "Initial Flag", )
-    steps[2]=(str(l.dical.__name__),"Direction Independent Calibration")
+    from setisim.lib import Lib
+    from setisim.metadata import ConfigStream
+    cs=ConfigStream(folder=input_folder, inputfile=files)
+    cs.read()
+    l=Lib(cs,'')
+    l.solve=False
+    l.run_auxilliary()
+    
     if dict: 
-        return steps
+        return l.steps
     else:
-        for k,v in steps.items():_help += f"""{k}:{v[0]}\t {v[1]}\n"""
-        return _help
+        for i,(k,v) in enumerate(l.steps.items()):_help += f"""{i}:{k}:\t{','.join(v)}\n"""
+        return dedent(_help)
 
 def first_run():
     """
@@ -117,7 +123,17 @@ def run_aux(config, steps, casalogf, pipedir):
     """
     TODO:run commands directly from params/config and steps
     """
-    pass
+    from setisim.lib import Lib
+    from setisim.metadata import ConfigStream
+    cs=ConfigStream(folder=input_folder, inputfile=files)
+    cs.read()
+    l=Lib(cs,'')
+    l.run_auxilliary(steps)
+    print(l.steps)
+    # pprint(l.steps)
+    # l._sanitize_stepslist()
+    # for step in l.steps:
+    #     pprint(step[0].__name__)
 
 def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
     """
@@ -137,7 +153,7 @@ def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
     # if cmd and picardpath:subprocess.run(cmd, stderr=open(errlogf,"+a")) # shell=True?
 
 #   ----------------------------------------------------------------
-    
+
 parser = argparse.ArgumentParser('setisim',description=f"""pipeline for {c['c']}SETI{c['x']} {c['c']}S{c['x']}ynthesis {c['c']}Im{c['x']}aging
 """, formatter_class=argparse.RawTextHelpFormatter,add_help=False)
 
@@ -164,13 +180,15 @@ parser.add_argument('-h',action='help', help="shows this help menu")
 parser.add_argument('-v','--version',help='shows information on the installed version',action='store_true')
 
 search_folder=args.read_config
+
 params,files, input_folder=read_inputfile(str(search_folder)+'/','config.inp')
 telescope=params['telescope']
-pipestep=parser.add_argument_group('pipeline_step',description=f"""select calibration options for {telescope}, e.g setisim -p 1~3""",)
+pipestep=parser.add_argument_group('pipeline_step',description=f"""select calibration options for {telescope}, e.g setisim -p 0~3""",)
 
 pipestep.add_argument('-p', '--pipe-step',   help=pipeline_step(params['telescope']), metavar='{1,2,3...}') # type: ignore
 
-def _vitals_check(args):
+
+def _allvitals_check(args):
     casadir, setisimpath, status, msg=None,None,False,''
     if not Path(pipedir).exists():Path(pipedir).mkdir(parents=True,exist_ok=True)
     if not args.bind:                                                                                   # check casapath for the pipeline run
@@ -187,6 +205,14 @@ def _vitals_check(args):
             print(f"Working with the script: {setisimpath}")
             status=True
     return casadir, setisimpath, status, msg
+
+def _args_sanitycheck(args):
+    """
+    TODO: write sanity check for all arguments
+    """
+    msg=f"{c['r']}Failed sanity check!{c['x']}"
+    if args.timerange:
+        pass
 
 def cli():
     args=parser.parse_args()
@@ -208,7 +234,7 @@ def cli():
         first_run()
     
     elif not args.pipe :
-        casadir,setisimpath,status,msg=_vitals_check(args)
+        casadir,setisimpath,status,msg=_allvitals_check(args)
         if status:
             strargs = []
             for k,v in vars(args).items():
@@ -222,7 +248,18 @@ def cli():
         else: print(msg)
     
     elif args.pipe:
+        import numpy as np
         steps=None
-        if args.pipe_step: steps = args.pipe_step.split(',')
+        if args.pipe_step: 
+            steps = args.pipe_step.split(',')
+            print(steps[0])
+            for i,step in enumerate(steps):
+                if '~' in str(step):   
+                    a,b=step.split('~')
+                    steps.pop(i)
+                    steps.extend(list(range(int(a),int(b))))
+            steps=np.sort(steps).tolist()
+            print(steps)
+            
         casalogf=args.casalogf
         run_aux(params, steps, casalogf, pipedir)

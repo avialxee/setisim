@@ -4,6 +4,8 @@
 # -------- Telescope ------------------------------
 telescope               =   'GMRT'
 refant                  =   'C00'
+spw                     =   ''
+minsnr                  =   5.0
 # GOOD_SPECTRAL_WINDOW    =   '0:'
 
 # -------- Sources --------------------------------
@@ -13,6 +15,7 @@ delay_bandpass_cal      =   '4C39.5'
 flux_cal                =   '4C39.5'
 
 # -------- Folders & Files -------------------------
+vis                     =   'example.ms'
 setisim_output          =   'setisim/'                  # all the files and folders followed are located inside this folder
 cal_tables              =   'cal_tables/'
 output_images           =   'output/'
@@ -21,10 +24,10 @@ gain_plots              =   'gain/'
 listfile                =   'listobs.txt'
 
 # -------- Flagging --------------------------------
-quack_interval          =   10.0
-quack_mode              =   'beg'
+quackinterval           =   10.0
+quackmode               =   'beg'
 tfcrop                  =   False
 rflag                   =   False
-
+clipminmax              =   [0,50]
 
 config = {key: value for key, value in locals().items() if not key.startswith('__')}

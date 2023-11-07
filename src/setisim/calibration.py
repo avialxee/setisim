@@ -178,10 +178,9 @@ class Cal:
 
 class CalTasks(Cal):
     """
-    TODO    :   
-    take user input before apply for attribute
-    fix the cal_seq for fluxscale, gain etc
-    Remove the table files of similar name
+    [ ] take user input before apply for attribute
+    [ ] fix the cal_seq for fluxscale, gain etc
+    [ ] Remove the table files of similar name
 
     """
     def __init__(self, vis, refant, field, scan, spw, minsnr, timerange, wd, solint, flagbackup, phase_cal, targets, bandpass_cal, flux_cal, name='init'):
@@ -223,7 +222,7 @@ class CalTasks(Cal):
             ]
         seq=np.empty(len(cal_seq), dtype=object)
         seq[:]=cal_seq
-        return seq[seq_ind], seq_ind
+        return seq[seq_ind].tolist(), seq_ind
         
     def solve(self, **kwargs):
         from casatasks import gaincal, bandpass, setjy, fluxscale

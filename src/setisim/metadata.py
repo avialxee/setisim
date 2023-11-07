@@ -1,6 +1,6 @@
 from casatools import ms, msmetadata, table
 from setisim import read_inputfile
-from setisim.util import create_config
+from setisim import create_config
 
 """
 TODO:
@@ -29,6 +29,10 @@ def fetch_sources(vis):
            'fdcalf':fdcalf, 'fdcals':fdcals,
            'targetf':targetf, 'targets':targets
            }
+
+class MetaData:
+     def __init__(self, *args, **kwargs):
+          pass
 
 class ConfigStream:
 

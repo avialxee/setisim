@@ -1,7 +1,7 @@
 import glob, io, base64
 from os import curdir, path, makedirs, remove, getcwd
 from shutil import rmtree
-
+from pprint import pprint
 import numpy as np
 from astropy.wcs import WCS
 from matplotlib.pyplot import plot as plt
@@ -16,6 +16,10 @@ def __clear_tmp(wd,filename):
         except OSError:
             remove(f)
 
+def exec(listtuple):
+    for t in listtuple:
+        print(f"{t[2]}\n")
+        eval(t[0])(*t[1])
 
 def save_fig(plt, fig, kind='base64', output='output.jpg'):
     if kind == 'base64':
