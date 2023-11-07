@@ -5,7 +5,7 @@ with open("README.md", "r") as rdme:
 
 setup(
     name = 'setisim',
-    version = '0.0.1',
+    version = '0.1.0',
     url='https://github.com/avialxee/setsim',
     author='Avinash Kumar',
     author_email='avialxee@gmail.com',
@@ -29,7 +29,7 @@ setup(
     },
      entry_points={ 
         "console_scripts": [
-            "setisim=setisim.cli:cli",
+            "setisim=setisim:cli",
         ],
     },
 

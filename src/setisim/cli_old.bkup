@@ -13,25 +13,23 @@ parser.add_argument('-f', '--frequency', type=float, help='input rest frequency 
 parser.add_argument('-p', '--pipe', type=str, nargs='+', default=[''], help='pipeline #')
 parser.add_argument('-pp', '--pipeline', type=int, help='pipeline #')
 parser.add_argument('-convert', '--fitstovis', type=bool, help='convert fits to visfile')
-parser.add_argument('-v', '--visibilityfilename', type=str, help='output visibility measurement set(.MS) filename')
+parser.add_argument('-v', '--vis', type=str, help='output visibility measurement set(.MS) filename')
 parser.add_argument('-flg', '--flag', type=int, help="""flagging pipeline
 1 - init flag
 2 - tfcrop independent on each source
 3 - bandpass calibrate + rflag""")
 args=parser.parse_args()
-from setisim import *
 
-def cli():
+def cli_old():
     
-    fitsfile=args.fitsfilename or '/datax/scratch/AMITY_INDIA/avi/GMRT_d/tst2505/TEST2505_B0329_100MHZ_GWB_2.FITS'
-    visfile=args.visibilityfilename or 'uncal1_0329.MS'
-    f = args.frequency or None
-    timerange = args.timerange or ''
-    timeinstant = args.timeinstant or None
-    flg = args.flag  or 0
-    fitstovis = args.fitstovis or False
-    pp = args.pipeline
-    p = args.pipe
+    fitsfile        =   args.fitsfilename      #or '/datax/scratch/AMITY_INDIA/avi/GMRT_d/tst2505/TEST2505_B0329_100MHZ_GWB_2.FITS'
+    visfile         =   args.vis                #or 'uncal1_0329.MS'
+    f               =   args.frequency
+    timerange       =   args.timerange    
+    timeinstant     =   args.timeinstant
+    flg             =   args.flag
+    fitstovis       =   args.fitstovis or False
+    
 
     s = fetch_sources(visfile)
     if fitsfile and fitstovis:
