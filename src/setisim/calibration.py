@@ -112,7 +112,7 @@ class Cal:
         )
         
 
-    def bp_cal(self, bandpass, tablekey='B', **kwargs):
+    def bp_cal(self, bandpass, plotbandpass, tablekey='B', **kwargs):
         self.solint             =   'inf'
         self.modetype           =   'B'
         self.tablename          =    self.MODES[self.modetype]
@@ -136,7 +136,9 @@ class Cal:
                     parang      =   True,
                     interp      =   ['nearest,nearestflag','nearest,nearestflag'],
         )
-        
+        params = {'figfile':'','antenna':'C00'}
+        params.update(kwargs)
+        plotbandpass(caltable=self.caltable, xaxis='freq', yaxis='amp', field=self.field,**params)
 
     def gc_gain(self, gaincal, tablekey='AP', **kwargs):
         self.modetype           =   'ap'
@@ -211,25 +213,26 @@ class CalTasks(Cal):
         seq_ind=np.where(seq_switch)[0]
         
         cal_seq = [
-            (self.cal_model_setjy,  'setjy'), 
-            (self.cal_delay,        'gaincal'), 
-            (self.cal_phase,        'gaincal'), 
-            (self.cal_bandpass,     'bandpass'), 
-            (self.cal_phase_t,      'gaincal'), 
-            (self.cal_phase_inf,    'gaincal'),
-            (self.cal_fluxscale,    'fluxscale'), 
-            (self.cal_gain,         'gaincal')
+            (self.cal_model_setjy,  ['setjy']), 
+            (self.cal_delay,        ['gaincal']), 
+            (self.cal_phase,        ['gaincal']), 
+            (self.cal_bandpass,     ['bandpass', 'plotbandpass']),
+            (self.cal_phase_t,      ['gaincal']), 
+            (self.cal_phase_inf,    ['gaincal']),
+            (self.cal_fluxscale,    ['fluxscale']), 
+            (self.cal_gain,         ['gaincal'])
             ]
         seq=np.empty(len(cal_seq), dtype=object)
         seq[:]=cal_seq
-        return seq[seq_ind].tolist(), seq_ind
+        return seq[seq_ind].tolist()
         
     def solve(self, **kwargs):
-        from casatasks import gaincal, bandpass, setjy, fluxscale
+        from casatasks import gaincal, bandpass, setjy, fluxscale, plotbandpass
         cal_seq = self.cal_sequence()
         solved_gains=[]
         for t, v in cal_seq:
-            t(eval(v), **kwargs)
+            par_list=[eval(val) for val in v]
+            t(eval(*par_list), **kwargs)
             solved_gains.append(self.gaintable)
         self.gaintable = list(dict.fromkeys(solved_gains))      # keeps ordered unique values in list for python>=3.7
         
@@ -266,9 +269,11 @@ class CalTasks(Cal):
         self.gaintable          =   self.list_table('K')
         self.gc_phase(gaincal, tablekey, **kwargs)
         
-    def cal_bandpass(self, bandpass, tablekey='B', **kwargs):
+    def cal_bandpass(self, bandpass, plotbandpass, tablekey='B', **kwargs):
         self.gaintable          =   self.list_table('p','K')
-        self.bp_cal(bandpass, tablekey, **kwargs)
+        self.bp_cal(bandpass, plotbandpass, tablekey, **kwargs)
+    
+    
 
     def cal_phase_t(self, gaincal, tablekey='pt', **kwargs):
         self.gaintable          =   self.list_table('p','K')

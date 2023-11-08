@@ -38,19 +38,20 @@ def read_inputfile(folder,inputfile='config.inp'):
                                 try:
                                     v=float(v)
                                 except:
-                                    v=str(v).strip()                
-                                    if 'True' in v: v=v.lower()=='true'
+                                    v=str(v).strip()
+                                    if ',' in v:v=list(range(v.split(',')))
+                                    elif 'True' in v: v=v.lower()=='true'
                                     elif 'False' in v:v=v.lower()=='true'
                             params[k.strip()]=v                             # type: ignore
     return params, files, input_folder
 
 
 def create_config(params, out='config.inp'):
-    
     with open(out, 'w') as o:
         for k,v in params.items():
             
             if isinstance(v,list) : 
+                v=map(str, v)
                 o.write(f'{k}={",".join(v)}\n')
             elif isinstance(v, range):
                 o.write(f'{k}={v.start}~{v.stop}\n')
@@ -88,19 +89,22 @@ def pipeline_step(telescope='GMRT', dict=False):
     l=Lib(cs,'')
     l.solve=False
     l.run_auxilliary()
-    
+    # print(l.steps)
     if dict: 
         return l.steps
-    else:
-        for i,(k,v) in enumerate(l.steps.items()):_help += f"""{i}:{k}:\t{','.join(v)}\n"""
+    else:        
+        for i,k in enumerate(l.steps):_help += f"""{i}:{k}\n""" #:\t{','.join(v)}\n"""
         return dedent(_help)
 
 def first_run():
     """
     """
     print("Please enter your monolithic casa directory (eg /path/to/casa-CASA-xxx-xxx-py3.xxx/bin/):")
+    
     casadir=input()
-    if not Path(casadir).exists(): 
+    try:
+        subprocess.run([f"{casadir}/casa",'-v'],shell=False, stdout=subprocess.DEVNULL)
+    except FileNotFoundError:
         print(f"{c['r']}Failed!{c['x']} The path you entered is not a valid casa directory")
         print(f"Proceed with automatic search? (y/n):")
         auto=input()
@@ -109,8 +113,8 @@ def first_run():
             print(f"{c['g']}Success!{c['x']} Found this casa directory:{c['g']} {casadir}{c['x']}")
         if not Path(casadir / 'mpicasa').exists():
             print("Failed! mpicasa was not found")
-    else:
-        casadir = Path(casadir)
+        else:
+            casadir = Path(casadir)
     subprocess.run([f"{casadir}/casa",'-v'],shell=False, stdout=subprocess.DEVNULL)
     subprocess.run([f"{casadir}/mpicasa",'-h'],shell=False, stdout=subprocess.DEVNULL)
     casa_path=f"{pipedir}/casa_path.txt"
@@ -128,12 +132,12 @@ def run_aux(config, steps, casalogf, pipedir):
     cs=ConfigStream(folder=input_folder, inputfile=files)
     cs.read()
     l=Lib(cs,'')
+    print(f"executing following steps:")
     l.run_auxilliary(steps)
     print(l.steps)
-    # pprint(l.steps)
-    # l._sanitize_stepslist()
-    # for step in l.steps:
-    #     pprint(step[0].__name__)
+    l.solve=True
+    l.run_auxilliary(steps)
+    
 
 def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
     """
@@ -146,11 +150,11 @@ def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
     cmd=[]
     if n_cores==2:
         print("Not running MPI for -n=2")
-        cmd = [f'{casadir}/casa', '--agg', '--nogui', '--logfile', casalogf, '-c', str(setisimpath), '--pipe', '--casalogf', casalogf] + passed_cmd_args
+        cmd = [str(setisimpath), '--pipe', '--casalogf', casalogf] + passed_cmd_args
     if n_cores>2:
         cmd = [f'{casadir}/mpicasa', '--oversubscribe', '-n', str(n_cores), f'{casadir}/casa', '--agg', '--nogui', '--logfile', casalogf, '-c', str(setisimpath), '--pipe', '--casalogf', casalogf] + passed_cmd_args
     print(cmd)
-    # if cmd and picardpath:subprocess.run(cmd, stderr=open(errlogf,"+a")) # shell=True?
+    if cmd and setisimpath:subprocess.run(cmd, stderr=open(errlogf,"+a"))
 
 #   ----------------------------------------------------------------
 
@@ -163,8 +167,8 @@ input_params.add_argument('-t', '--timerange',  type=str,   help='input timerang
 input_params.add_argument('-sec','--seconds',  type=str,   help='input time interval for ex: 509')
 input_params.add_argument('-F', '--frequency',  type=float, help='input rest frequency in MHz for ex: 599.934')
 input_params.add_argument('-m',  '--ms-file',  type=str,   help='measurement set(.MS) path')
-input_params.add_argument('-n', '--n-cores',  type=int,   help='specify number of cores to use MPI', default=1)
-input_params.add_argument('-rc','--read-config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
+input_params.add_argument('-n', '--n-cores', dest='n_cores',  type=int,   help='specify number of cores to use MPI', default=1)
+input_params.add_argument('-rc','--read-config', dest='read_config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
 
 parser.add_argument('--pipe',help='pipeline mode',action='store_true')
 parser.add_argument('--casalogf',help='This file is used for storing logs from CASA task run')
@@ -220,10 +224,10 @@ def cli():
     # fitsfile        =   args.fitsfile      #or '/datax/scratch/AMITY_INDIA/avi/GMRT_d/tst2505/TEST2505_B0329_100MHZ_GWB_2.FITS'
     timerange       =   args.timerange
     n_cores         =   args.n_cores
+    fitsfile        =   args.fitsfile
 
-    if args.ms_file:
-        params['vis']=args.ms_file
-    
+    if args.ms_file: params['vis']=args.ms_file
+
     if args.version:
         print(version('setisim'))
     
@@ -248,18 +252,20 @@ def cli():
         else: print(msg)
     
     elif args.pipe:
-        import numpy as np
+        if args.fitstovis:
+            from casatasks import importgmrt
+            if Path(fitsfile).exists():
+                os.system(f'rm -rf {params["vis"]}')
+                importgmrt(fitsfile=fitsfile, vis=visfile)
         steps=None
         if args.pipe_step: 
             steps = args.pipe_step.split(',')
-            print(steps[0])
             for i,step in enumerate(steps):
                 if '~' in str(step):   
                     a,b=step.split('~')
                     steps.pop(i)
                     steps.extend(list(range(int(a),int(b))))
-            steps=np.sort(steps).tolist()
-            print(steps)
+            steps.sort()
             
         casalogf=args.casalogf
         run_aux(params, steps, casalogf, pipedir)

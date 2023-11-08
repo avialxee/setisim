@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from setisim.util import plt, WCS, np, colors, AnchoredSizeBar, save_fig        # type: ignore
+from pyvirtualdisplay import Display
 
 from casatasks import tclean, imstat
 from casatools import image as IA
@@ -110,52 +111,49 @@ def tclean_continuum_image(science_vis_cont, imagename, suffix='', norm_max=None
     genpng(imagename+'.image',0,out=f"{imagename}"+suffix+'.cont', norm_max=norm_max, kind='jpg')
     return norm_max
 
-def plotd(visfile, **kwargs):
-    display = Display(visible=0,size=(1024,768))
+def plotd(plotms, config, **kwargs):
+    """
+    for quick views you can select small timerange and averaged channel etc.
+    """
+    display = Display(visible=False, size=(1024,768))
     display.start()
 
-    plotfolder=f'plots/{Path(visfile).stem}/'
-    if not path.exists(plotfolder):
-        try:
-            oumask = os.umask(0)
-            makedirs(plotfolder)
-        except:
-            os.umask(oumask)
-            makedirs(plotfolder, 775)
+    plotfolder              =   config.plotfolder
+    if not Path(plotfolder).exists(): Path(plotfolder).mkdir(parents=True,exist_ok=True)
     print(f'plotting in folder: {plotfolder}')
-    vis = visfile
-    metadata=listobs(vis, verbose=True)
-    msmd.open(vis)
-    nchan = msmd.nchan(0)
-    msmd.done()
 
-    fieldl = {k.replace('field_', ''):{'name':v['name']} for k,v in metadata.items() if 'field_' in k}
-    scanl = {k.replace('scan_', ''):v['0']['FieldName'] for k,v in metadata.items() if 'scan_' in k}
-    for fk,fv in fieldl.items():
-        fieldl[str(fk)]['scans']=[k.replace('scan_', '') for k,v in metadata.items() if ('scan_' in k) and (v['0']['FieldId']==int(fk))]
-    metadata.update({'fieldl':fieldl, 'scanl':scanl})
-    params={'spw':'',#f'0:{int(nchan*0.4)}~{int(nchan*0.6)}',
-    'avgchannel' :str(nchan),
-    'uvrange':'',
-    'antenna':'C00', 'scan':'', 'corr':'',
-    'xaxis':[''], 'yaxis':['']}
+    vis = config.vis
+    params={
+            'spw'           :   '',#f'0:{int(nchan*0.4)}~{int(nchan*0.6)}',
+            'nchan'         :   '',
+            'uvrange'       :   '',
+            'antenna'       :   '',
+            'scan'          :   '',
+            'corr'          :   '',
+            'xaxis'         :   [''],
+            'yaxis'         :   ['']
+            }
     params.update(kwargs)
+    if not params['nchan']: print("avgchannel might fail as nchan is missing")
     spw, avgchannel, uvrange, antenna = params['spw'], params['avgchannel'], params['uvrange'], params['antenna']
     print(f"{spw}, {avgchannel}, {uvrange}, {antenna}")
-    # selectedfield=metadata['fieldl']['4']
-    scanlist = params['scan'] or scanl.keys()
-    comb={'amp':{'freq':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
-             'time':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''},
-             'uvwave':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
-            }, 
-      'phase':{'freq':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
-               'time':{'averagedata':True,'avgtime':'', 'avgbaseline':True, 'avgchannel':nchan},
-               'uvwave':{'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':nchan},
-               'amp':{'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''}
+    
+    scanlist = params['scan']
+    plot_dictcomb={
+        'amp':
+                   {'freq'  :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
+                    'time'  :   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''},
+                    'uvwave':   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
+                    }, 
+        'phase':
+                    {'freq' :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
+                    'time'  :   {'averagedata':True,'avgtime':'', 'avgbaseline':True, 'avgchannel':params['nchan']},
+                    'uvwave':   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':params['nchan']},
+                    'amp'   :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''}
               },
      }
     _pd={}
-    for k,v in comb.items():
+    for k,v in plot_dictcomb.items():
         for yi in params['yaxis']:
             if yi:
                 if yi==k:            
@@ -163,15 +161,15 @@ def plotd(visfile, **kwargs):
                         for vi in v:
                             if xi and (xi==vi):
                                 try:
-                                    _pd[k][vi]=comb[k][vi]
+                                    _pd[k][vi]=plot_dictcomb[k][vi]
                                 except:
-                                    _pd[k]={vi:comb[k][vi]}
+                                    _pd[k]={vi:plot_dictcomb[k][vi]}
                                 break
                             else:
                                 try:
-                                    _pd[k][vi]=comb[k][vi]
+                                    _pd[k][vi]=plot_dictcomb[k][vi]
                                 except:
-                                    _pd[k]={vi:comb[k][vi]}
+                                    _pd[k]={vi:plot_dictcomb[k][vi]}
 
             else:
                 for xi in params['xaxis']:
@@ -179,15 +177,15 @@ def plotd(visfile, **kwargs):
                         if xi:
                             if xi==vi:
                                 try:
-                                    _pd[k][vi]=comb[k][vi]
+                                    _pd[k][vi]=plot_dictcomb[k][vi]
                                 except:
-                                    _pd[k]={vi:comb[k][vi]}
+                                    _pd[k]={vi:plot_dictcomb[k][vi]}
                                 break
                         else:
                             try:
-                                _pd[k][vi]=comb[k][vi]
+                                _pd[k][vi]=plot_dictcomb[k][vi]
                             except:
-                                _pd[k]={vi:comb[k][vi]}                       
+                                _pd[k]={vi:plot_dictcomb[k][vi]}                       
     try:
         for scan in scanlist:
             scan=str(scan)
@@ -202,7 +200,8 @@ def plotd(visfile, **kwargs):
                         averagedata=avgdata['averagedata'], avgtime=avgdata['avgtime'], avgbaseline=avgdata['avgbaseline'],
                         avgchannel=str(avgdata['avgchannel']),
                         uvrange=uvrange,
-                        plotfile=plotfolder+f"{yaxis}_v_{xaxis}.{scanl[str(scan)]}.{scan}.png", overwrite=True)
+                        plotfile=str(plotfolder)+f"{yaxis}_v_{xaxis}.{scanl[str(scan)]}.{scan}.png", overwrite=True)
             
     finally:
         display.stop()
+

@@ -16,13 +16,15 @@ flux_cal                =   '4C39.5'
 
 # -------- Folders & Files -------------------------
 vis                     =   'example.ms'
-setisim_output          =   'setisim/'                  # all the files and folders followed are located inside this folder
-cal_tables              =   'cal_tables/'
-output_images           =   'output/'
-bandpass_plots          =   'bandpass/'
-gain_plots              =   'gain/'
+outdir                  =   'setisim/'                  # all the files and folders followed are located inside this folder
+caltables               =   'cal_tables/'
+outputimages            =   'output/'
+bandpassplots           =   'bandpass/'
+gainplots               =   'gain/'
 listfile                =   'listobs.txt'
 flagfile                =   'flag.txt'
+plotfolder              =   'plots/'
+
 # -------- Flagging --------------------------------
 quackinterval           =   10.0
 quackmode               =   'beg'

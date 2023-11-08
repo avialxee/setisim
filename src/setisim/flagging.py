@@ -34,7 +34,7 @@ class FlagData:
         if self.badant      :   self.cmd.append(f"mode='manual' antenna='{self.badant}'")
         if self.shadows     :   self.cmd.append(f"mode='shadow' tolerance=0.0")
         if self.clip        :   
-                                self.cmd.append(f"mode='clip' clipminmax={self.clip}")
+                                # self.cmd.append(f"mode='clip' clipminmax={self.clip}")
                                 self.cmd.append(f"mode='clip' clipzeros=True")
         # if self.tfcrop      :   self.cmd.append(f"")
         
