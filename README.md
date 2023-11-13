@@ -51,9 +51,17 @@ operations:
   --bind                bind setisim with your casa path
 
 pipeline_step:
-  select calibration options for GMRT, e.g setisim -p 1~3
+  select calibration options for GMRT, e.g setisim -p 0~3
 
   -p {1,2,3...}, --pipe-step {1,2,3...}
-                        1:init_flag      Initial Flag
-                        2:dical  Direction Independent Calibration
+                        0:gen_listobs
+                        1:flag_init
+                        2:flag_autotfcrop
+                        3:flag_fromfile
+                        4:cal_setmodel
+                        5:cal_direction_independent
+                        6:diagnostics
+                        7:gen_flagsummary
+                        8:split_field
+                        9:selfcal_setmodel
 ```
