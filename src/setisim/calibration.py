@@ -33,10 +33,13 @@ class Cal:
         self.name               =   name
         
         self.selectdata         =   False
+        self.append             =   False
         
         
         self.caltable           =   ''
         self.gaintable          =   ''
+        self.interp             =   []
+        self.solnorm            =   False
 
         self.wd                 =   Path(wd)
         self.tablename          =   '0'
@@ -47,7 +50,7 @@ class Cal:
         
 
     def __gentablepath(self, *tablekeys):
-        for tablekey in tablekeys: self.tablepaths[tablekey]  = self.tablefolder / f"{self.tablename}.{self.name}.{self.field}.t"
+        for tablekey in tablekeys: self.tablepaths[tablekey]  = str(self.tablefolder / f"{self.tablename}.{self.name}.{self.field}.t")
         
     def model_setjy(self, setjy, **kwargs):
         """
@@ -84,7 +87,7 @@ class Cal:
                     refant      =   self.refant,
                     gaintype    =   self.modetype,
                 )
-        self.__gentablepath(tablekey)
+        
     
     def gc_phase(self, gaincal, tablekey='p', **kwargs):
         """
@@ -145,8 +148,9 @@ class Cal:
         self.solint             =   'inf'
         self.tablename          =    self.MODES[self.modetype]
         self.__gentablepath(tablekey)
-        self.caltable           =   self.tablepaths[tablekey]
+        self.caltable           =   str(self.tablepaths[tablekey])
         self.__dict__.update(kwargs)
+        print(f"gaintable:{self.gaintable}\nappend={self.append}")
         gaincal(
             vis                 =   self.vis,
             caltable            =   self.caltable, 
@@ -158,7 +162,10 @@ class Cal:
             refant              =   self.refant,
             calmode             =   self.modetype, 
             minsnr              =   self.minsnr, 
-            gaintable           =   self.gaintable
+            gaintable           =   self.gaintable,
+            append              =   self.append,
+            interp              =   self.interp,
+            solnorm             =   self.solnorm,
         )
 
     def fl_scale(self, fluxscale, reference, transfer, caltable, tablekey='F', **kwargs):
@@ -166,7 +173,7 @@ class Cal:
         self.tablename          =    self.MODES[self.modetype]
         self.__gentablepath(tablekey)
         self.caltable           =   caltable
-        self.fluxtable          =   self.tablepaths[tablekey]
+        self.fluxtable          =   str(self.tablepaths[tablekey])
         self.__dict__.update(kwargs)
         fluxscale(
             vis                 =   self.vis, 
@@ -185,10 +192,11 @@ class CalTasks(Cal):
     [ ] Remove the table files of similar name
 
     """
-    def __init__(self, vis, refant, field, scan, spw, minsnr, timerange, wd, solint, flagbackup, phase_cal, targets, bandpass_cal, flux_cal, name='init'):
+    def __init__(self, vis, refant, field, scan, caltables, spw, minsnr, timerange, wd, solint, flagbackup, phase_cal, targets, bandpass_cal, flux_cal, name='init'):
         self.vis                =   vis
         self.refant             =   refant
         self.scan               =   scan
+        self.caltables          =   caltables
         self.field              =   field
         self.spw                =   spw
         self.minsnr             =   minsnr
@@ -197,6 +205,7 @@ class CalTasks(Cal):
         self.solint             =   solint
         self.flagbackup         =   flagbackup or False
         self.name               =   name
+        
                                                             # following should be supplied from the configstream, eg assumes a list
         self.phase_cal          =   phase_cal           
         self.targets            =   targets
@@ -206,6 +215,7 @@ class CalTasks(Cal):
         super().__init__(self.vis, self.refant, self.field, self.scan, self.spw, self.minsnr, self.timerange, self.wd, self.solint, self.name)
         self.set_model,self.delay,self.phase,self.bandpass,self.phase_t,self.phase_inf,self.fscale,self.gain=[False]*8
         
+        self.tablefolder         =   self.caltables
         self.gainfield_interp   =   []
 
     def cal_sequence(self):
@@ -228,13 +238,15 @@ class CalTasks(Cal):
         
     def solve(self, **kwargs):
         from casatasks import gaincal, bandpass, setjy, fluxscale, plotbandpass
+        dict_tasks  =   {'gaincal':gaincal, 'bandpass':bandpass, 'setjy':setjy, 'fluxscale':fluxscale, 'plotbandpass':plotbandpass}
         cal_seq = self.cal_sequence()
         solved_gains=[]
         for t, v in cal_seq:
-            par_list=[eval(val) for val in v]
-            t(eval(*par_list), **kwargs)
-            solved_gains.append(self.gaintable)
-        self.gaintable = list(dict.fromkeys(solved_gains))      # keeps ordered unique values in list for python>=3.7
+            par_list=[eval(val, dict_tasks) for val in v]
+            t(*par_list, **kwargs)
+            solved_gains.extend(self.gaintable)
+        
+        self.gaintable          =   list(dict.fromkeys(solved_gains))      # keeps ordered unique values in list for python>=3.7
         
     
     def apply(self, gainfield=[], interp=[],**kwargs):
@@ -253,13 +265,13 @@ class CalTasks(Cal):
                     gainfield   =   gainfield,        #[s['bpcalf'],s['bpcalf'],s['bpcalf'],s['bpcalf']], 
                     interp      =   interp,
                     parang      =   True, 
-                    calwt       =   False, 
-                    # applymode =   'calflagstrict', 
+                    calwt       =   False,            # applymode =   'calflagstrict', 
                     flagbackup  =   self.flagbackup,
                     **kwargs
                 )
 
     def cal_model_setjy(self, setjy, **kwargs):
+        self.field              =   self.flux_cal
         self.model_setjy(setjy, **kwargs)
 
     def cal_delay(self, gaincal, **kwargs):

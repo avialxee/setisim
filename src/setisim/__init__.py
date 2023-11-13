@@ -39,7 +39,21 @@ def read_inputfile(folder,inputfile='config.inp'):
                                     v=float(v)
                                 except:
                                     v=str(v).strip()
-                                    if ',' in v:v=list(range(v.split(',')))
+                                    if any(s in v for s in ['~',',']):
+                                        v=v.split(',')
+                                        av=[]
+                                        for a in v:
+                                            if '~' in a:
+                                                av=a.split('~')
+                                                av=list(range(int(av[0]), int(av[1])+1))
+                                            else:
+                                                av+=[int(a)]
+                                        v=av
+                                        
+                                    if ',' in v:
+                                        v=v.split(',')
+                                        v=[int(a) for a in v if a]
+                                    
                                     elif 'True' in v: v=v.lower()=='true'
                                     elif 'False' in v:v=v.lower()=='true'
                             params[k.strip()]=v                             # type: ignore
@@ -130,7 +144,9 @@ def run_aux(config, steps, casalogf, pipedir):
     from setisim.lib import Lib
     from setisim.metadata import ConfigStream
     cs=ConfigStream(folder=input_folder, inputfile=files)
+    cs.build_path = True
     cs.read()
+    
     l=Lib(cs,'')
     print(f"executing following steps:")
     l.run_auxilliary(steps)
@@ -148,13 +164,28 @@ def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
     errlogf  = f'err.log_{thisdate}'
     casadir = open(os.path.join(pipedir, 'casa_path.txt')).read().strip()
     cmd=[]
+    
     if n_cores==2:
         print("Not running MPI for -n=2")
         cmd = [str(setisimpath), '--pipe', '--casalogf', casalogf] + passed_cmd_args
-    if n_cores>2:
+    elif n_cores>2:
         cmd = [f'{casadir}/mpicasa', '--oversubscribe', '-n', str(n_cores), f'{casadir}/casa', '--agg', '--nogui', '--logfile', casalogf, '-c', str(setisimpath), '--pipe', '--casalogf', casalogf] + passed_cmd_args
-    print(cmd)
-    if cmd and setisimpath:subprocess.run(cmd, stderr=open(errlogf,"+a"))
+    
+    else:
+        print(params)
+        exit(0)
+
+
+    if cmd and setisimpath:
+        subprocess.run(cmd, stderr=open(errlogf,"+a"))
+        proc = subprocess.Popen(['tail', '-n', '100', errlogf], stdout=subprocess.PIPE)
+        lines = proc.stdout.read()
+        print(lines.decode('utf-8'))
+        if Path(casalogf).exists():
+            proc = subprocess.Popen(['tail', '-n', '100', casalogf], stdout=subprocess.PIPE)
+            lines = proc.stdout.read()
+            print(lines.decode('utf-8'))
+    
 
 #   ----------------------------------------------------------------
 
@@ -167,8 +198,8 @@ input_params.add_argument('-t', '--timerange',  type=str,   help='input timerang
 input_params.add_argument('-sec','--seconds',  type=str,   help='input time interval for ex: 509')
 input_params.add_argument('-F', '--frequency',  type=float, help='input rest frequency in MHz for ex: 599.934')
 input_params.add_argument('-m',  '--ms-file',  type=str,   help='measurement set(.MS) path')
-input_params.add_argument('-n', '--n-cores', dest='n_cores',  type=int,   help='specify number of cores to use MPI', default=1)
-input_params.add_argument('-rc','--read-config', dest='read_config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
+input_params.add_argument('-n', '--n-cores', type=int,   help='specify number of cores to use MPI', default=1)
+input_params.add_argument('-rc','--read-config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
 
 parser.add_argument('--pipe',help='pipeline mode',action='store_true')
 parser.add_argument('--casalogf',help='This file is used for storing logs from CASA task run')
@@ -221,7 +252,6 @@ def _args_sanitycheck(args):
 def cli():
     args=parser.parse_args()
     
-    # fitsfile        =   args.fitsfile      #or '/datax/scratch/AMITY_INDIA/avi/GMRT_d/tst2505/TEST2505_B0329_100MHZ_GWB_2.FITS'
     timerange       =   args.timerange
     n_cores         =   args.n_cores
     fitsfile        =   args.fitsfile
@@ -242,26 +272,29 @@ def cli():
         if status:
             strargs = []
             for k,v in vars(args).items():
-                if v and not 'pipe' in k:
+                if v:
                     if str(v).lower()=='true':strargs.append(f'--{k}')
                     else: 
-                        strargs.append(f'--{k}')
+                        strargs.append(f"--{k.replace('_','-')}")
                         strargs.append(f'{v}')
             passed_cmd_args = strargs
             run_pipe(n_cores,casadir,setisimpath, passed_cmd_args)
         else: print(msg)
     
     elif args.pipe:
+        steps=None
         if args.fitstovis:
             from casatasks import importgmrt
             if Path(fitsfile).exists():
                 os.system(f'rm -rf {params["vis"]}')
-                importgmrt(fitsfile=fitsfile, vis=visfile)
-        steps=None
-        if args.pipe_step: 
+                importgmrt(fitsfile=fitsfile, vis=params['vis'])
+        
+        
+        elif args.pipe_step: 
+            
             steps = args.pipe_step.split(',')
             for i,step in enumerate(steps):
-                if '~' in str(step):   
+                if '~' in str(step):
                     a,b=step.split('~')
                     steps.pop(i)
                     steps.extend(list(range(int(a),int(b))))

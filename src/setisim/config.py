@@ -5,7 +5,8 @@
 telescope               =   'GMRT'
 refant                  =   'C00'
 spw                     =   ''
-minsnr                  =   5.0
+minsnr                  =   3.0
+scanlist                =   []
 # GOOD_SPECTRAL_WINDOW    =   '0:'
 
 # -------- Sources --------------------------------
@@ -28,8 +29,10 @@ plotfolder              =   'plots/'
 # -------- Flagging --------------------------------
 quackinterval           =   10.0
 quackmode               =   'beg'
-tfcrop                  =   False
+tfcrop                  =   True
 rflag                   =   False
+clip                    =   False
 clipminmax              =   [0,50]
-
+flagcmd                 =   'FLAG_CMD.txt'
+flagsummaryfile         =   'flagsummary.txt'
 config = {key: value for key, value in locals().items() if not key.startswith('__')}

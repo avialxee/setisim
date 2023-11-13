@@ -111,17 +111,16 @@ def tclean_continuum_image(science_vis_cont, imagename, suffix='', norm_max=None
     genpng(imagename+'.image',0,out=f"{imagename}"+suffix+'.cont', norm_max=norm_max, kind='jpg')
     return norm_max
 
-def plotd(plotms, config, **kwargs):
+def plotd(plotms, config, z=1.5, xax=[], yax=[], model=False, **kwargs):
     """
     for quick views you can select small timerange and averaged channel etc.
     """
-    display = Display(visible=False, size=(1024,768))
-    display.start()
+    
 
     plotfolder              =   config.plotfolder
     if not Path(plotfolder).exists(): Path(plotfolder).mkdir(parents=True,exist_ok=True)
     print(f'plotting in folder: {plotfolder}')
-
+    
     vis = config.vis
     params={
             'spw'           :   '',#f'0:{int(nchan*0.4)}~{int(nchan*0.6)}',
@@ -130,20 +129,32 @@ def plotd(plotms, config, **kwargs):
             'antenna'       :   '',
             'scan'          :   '',
             'corr'          :   '',
-            'xaxis'         :   [''],
-            'yaxis'         :   ['']
+            'w'             :   4096,
+            'h'             :   2880,
             }
-    params.update(kwargs)
-    if not params['nchan']: print("avgchannel might fail as nchan is missing")
-    spw, avgchannel, uvrange, antenna = params['spw'], params['avgchannel'], params['uvrange'], params['antenna']
-    print(f"{spw}, {avgchannel}, {uvrange}, {antenna}")
     
-    scanlist = params['scan']
+    params.update(kwargs)
+    w=params['w']
+    h=params['h']
+    sources                 =   config.scanlist or config.fields
+    
+    display = Display(visible=0,size=(w,h))
+    
+    if z: w,h=int(w/z),int(h/z)
+
+    display.start()
+
+
+    if not params['nchan']: print("avgchannel might fail as nchan is missing")
+    spw, uvrange, antenna = params['spw'], params['uvrange'], params['antenna']
+    print(f"spw={spw}, nchan={params['nchan']}, uvrange={uvrange}, antenna={antenna}")
+    
     plot_dictcomb={
         'amp':
                    {'freq'  :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
                     'time'  :   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''},
-                    'uvwave':   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
+                    'uvwave':   {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''},
+                    'uvidist':  {'averagedata':False,'avgtime':'', 'avgbaseline':False, 'avgchannel':''}
                     }, 
         'phase':
                     {'freq' :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''},
@@ -152,56 +163,166 @@ def plotd(plotms, config, **kwargs):
                     'amp'   :   {'averagedata':True,'avgtime':'1e9', 'avgbaseline':False, 'avgchannel':''}
               },
      }
-    _pd={}
-    for k,v in plot_dictcomb.items():
-        for yi in params['yaxis']:
-            if yi:
-                if yi==k:            
-                    for xi in params['xaxis']:
-                        for vi in v:
-                            if xi and (xi==vi):
-                                try:
-                                    _pd[k][vi]=plot_dictcomb[k][vi]
-                                except:
-                                    _pd[k]={vi:plot_dictcomb[k][vi]}
-                                break
-                            else:
-                                try:
-                                    _pd[k][vi]=plot_dictcomb[k][vi]
-                                except:
-                                    _pd[k]={vi:plot_dictcomb[k][vi]}
-
-            else:
-                for xi in params['xaxis']:
-                    for vi in v:
-                        if xi:
-                            if xi==vi:
-                                try:
-                                    _pd[k][vi]=plot_dictcomb[k][vi]
-                                except:
-                                    _pd[k]={vi:plot_dictcomb[k][vi]}
-                                break
-                        else:
-                            try:
-                                _pd[k][vi]=plot_dictcomb[k][vi]
-                            except:
-                                _pd[k]={vi:plot_dictcomb[k][vi]}                       
+                         
     try:
-        for scan in scanlist:
-            scan=str(scan)
-            print(scan)
-            # print(_pd)
-            for yaxis,xaxes in _pd.items():
+        msg = "Finished Successfully!"
+        for source in sources:
+            source                              =   source_name=str(source)
+            field                               =   source if (config.fields and not config.scanlist) else ''
+            scan                                =   source if config.scanlist else ''
+            if len(yax): 
+                for yaxes in yax: plot_dictcomb =   {k: plot_dictcomb[k] for k in plot_dictcomb if plot_dictcomb[k]==yaxes}
+            if len(xax):
+                for xaxes in xax: plot_dictcomb =   {k: plot_dictcomb[k] for k in plot_dictcomb if k==xaxes}
+                
+            for yaxis,xaxes in plot_dictcomb.items():
                 for xaxis,avgdata in xaxes.items():
-                    print(f'{yaxis} vs {xaxis}')
-                    plotms(vis=vis, scan=scan, antenna=antenna, spw=spw, correlation=params['corr'],
-                        xaxis=xaxis, yaxis=yaxis, coloraxis='corr', title=f'{scanl[str(scan)]}:{yaxis} vs {xaxis} - {scan}',
-                        showgui=False,
-                        averagedata=avgdata['averagedata'], avgtime=avgdata['avgtime'], avgbaseline=avgdata['avgbaseline'],
-                        avgchannel=str(avgdata['avgchannel']),
-                        uvrange=uvrange,
-                        plotfile=str(plotfolder)+f"{yaxis}_v_{xaxis}.{scanl[str(scan)]}.{scan}.png", overwrite=True)
+                    print(f'{yaxis} vs {xaxis} - {source_name}')
+                    plotms(
+                            vis                 =   vis, 
+                            field               =   field, 
+                            scan                =   scan,
+                            antenna             =   antenna, spw=spw, correlation=params['corr'],
+                            xaxis               =   xaxis, 
+                            yaxis               =   yaxis,
+                            coloraxis           =   'corr', 
+                            title               =   f'{source_name}:{yaxis} vs {xaxis}',
+                            showgui             =   False,
+                            averagedata         =   avgdata['averagedata'], 
+                            avgtime             =   avgdata['avgtime'],
+                            avgbaseline         =   avgdata['avgbaseline'],
+                            avgchannel          =   str(avgdata['avgchannel']),
+                            uvrange             =   uvrange,
+                            plotfile            =   str(plotfolder / f"{yaxis}_v_{xaxis}.{source_name}.png"),
+                            width               =   int(w),
+                            height              =   int(h),
+                            overwrite           =   True,
+                            clearplots          =   True,
+                            highres             =   False, 
+                            customsymbol        =   True, 
+                            symbolshape         =   'square',
+                            flaggedsymbolshape  =   'square',
+                            xaxisfont           =   22,
+                            yaxisfont           =   22,
+                            titlefont           =   22,
+                            ydatacolumns        =   'model' if model else ''
+                        )
+
+    except Exception as e:
+        msg=str(e)
             
     finally:
         display.stop()
+        print(f"STOPPED : {msg}")
 
+
+def tclean_model(vis, imagename, imsize=900, cell='1.0arcsec', threshold='1.0mJy', parallel=False):
+    """
+    created from the NCRA CASA tutorial by Ruta Kale : http://www.ncra.tifr.res.in/~ruta/ras-tutorials/CASA-tutorial.html
+    Running two iterations so that a Ctrl-C command wont corrupt the visibilities.
+    """
+    steps, savemodel, restoration, calcpsf, calcres, niter = [0,1], ['none', 'modelcolumn'], [True, False], [True, False], [True, False], [2000, 0]
+    for i in steps:
+        tclean(
+                                vis             =   vis, 
+                                imagename       =   imagename,
+                                selectdata      =   True,
+                                field           =   '0',
+                                spw             =   '0',
+                                imsize          =   imsize,
+                                cell            =   cell, 
+                                robust          =   0,
+                                weighting       =   'briggs',
+                                specmode        =   'mfs',
+                                nterms          =   2,
+                                niter           =   niter[i],
+                                usemask         =   'auto-multithresh',
+                                minbeamfrac     =   0.1,
+                                smallscalebias  =   0.6,
+                                threshold       =   threshold,
+                                pblimit         =   -1,
+                                deconvolver     =   'mtmfs',
+                                gridder         =   'wproject',
+                                wprojplanes     =   -1,
+                                wbawp           =   False,
+                                restoration     =   restoration[i],
+                                savemodel       =   savemodel[i],
+                                cyclefactor     =   0.5,
+                                parallel        =   parallel,
+                                calcpsf         =   calcpsf[i],
+                                calcres         =   calcres[i],
+                                interactive     =   False)
+    
+    print(f"Model Created successfully!  -\t\t{imagename}")    
+    return imagename
+
+def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold='0.5mJy', parallel=False):
+    tclean(                     
+                                vis             =   vis, 
+                                imagename       =   imagename,
+                                selectdata      =   True,
+                                field           =   '0',
+                                spw             =   '0',
+                                imsize          =   imsize,
+                                cell            =   cell, 
+                                robust          =   0,
+                                weighting       =   'briggs',
+                                specmode        =   'mfs',
+                                nterms          =   2,
+                                niter           =   3000,
+                                usemask         =   'auto-multithresh',
+                                minbeamfrac     =   0.1,
+                                smallscalebias  =   0.6,
+                                threshold       =   threshold,
+                                pblimit         =   -1,
+                                deconvolver     =   'mtmfs',
+                                gridder         =   'wproject',
+                                wprojplanes     =   128,
+                                wbawp           =   False,
+                                restoration     =   True,
+                                savemodel       =   'modelcolumn',
+                                cyclefactor     =   0.5,
+                                parallel        =   parallel,
+                                interactive     =   False
+            )
+    
+def fast_spectral_image(vis, cvis, timerange, rest_freq , suffix):
+    os.system(f'rm -rf {cvis}')
+    split(calvis, cvis, timerange=timerange, datacolumn='data')
+    uvcontsub(cvis, field='0',
+          fitspw=f'0:{rest_freq}', excludechans=True,
+          fitorder=1,
+          want_cont=True,
+         )
+    science_vis=cvis+'.contsub'
+    science_vis_cont=cvis+'.cont'
+    norm_max=tclean_continuum_image(science_vis_cont, science_vis_cont+'.cimage', suffix=suffix+'.cont')
+    tclean_spectral_image(science_vis, science_vis+'.cimage', rest_freq, suffix=suffix+'.cube', norm_max=norm_max)
+
+
+def selfcal_all(calibrated_csource, rest_freq):
+    
+    
+    calibrated_target=ctarget_stem+f'_field{s["targetf"]}.MS'
+    rest_freq= '599.934021MHz'
+
+    split(calibrated_csource, calibrated_target, datacolumn='data', field=s['targetf'])
+    model_dict=selfcal_model(calibrated_target)
+    t_duration = 12 # total time duration (seconds)
+    t_step = 12 # t_step seconds for imaging as time step in between the total duration
+    sctarget={}
+    sctarget['sc3'],sctarget['sc3_t']= model_dict['model_vis'], model_dict['model_vis']+'_spectral_image'
+    
+    for i in range(5,t_duration,t_step): # 
+        k1 =i
+        k2 =k1+t_step
+        sctarget['sc3_tk']=sctarget['sc3_t']+f'{k1}_{k2}.MS'
+        timerange=f'15:04:{k1:02d}.8~15:04:{k2:02d}.8'
+        print(timerange)    
+        print(sctarget['sc3_tk'])
+        try:
+            fast_spectral_image(sctarget['sc3'], sctarget['sc3_tk'], str(timerange), rest_freq , suffix=f'{k2}')
+        except Exception as e:
+            print(f'{e}')
+            pass
+    tclean_continuum_image(model_dict['model_vis'], 'whole_continuum', '_contonly')

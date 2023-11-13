@@ -1,6 +1,6 @@
 from casatools import ms, msmetadata, table
 from setisim import read_inputfile
-from setisim import create_config
+from setisim import Path
 
 """
 TODO:
@@ -42,6 +42,7 @@ class ConfigStream:
         self.imeta                  =   {}
         self.ifiles                 =   []
         self.wd                     =   '' 
+        self.build_path             =   False
 
     def attr_fromdict(self, dictconfig):
         self.config = dictconfig
@@ -55,27 +56,35 @@ class ConfigStream:
             for key in newconfig:
                     setattr(self, key, newconfig[key])
 
+    def update_path_fromkeys(self, outdir='',**kwargs):
+        def create_folder(*outs, files=False):
+            Path(self.imeta[outdir]).mkdir(parents=True, exist_ok=True)
+            for out in outs:
+                self.imeta[out]             =   Path(self.imeta[outdir]) / self.imeta[out]
+                
+                if not files: self.imeta[out].mkdir(parents=True, exist_ok=True)
+                else: self.imeta[out]         =   str(self.imeta[out])
+            
+        return create_folder
+
     def read(self):
         self.imeta, self.ifiles, self.wd    =   read_inputfile(folder='', inputfile=self.inputfile)
+        if 'scanlist' in self.imeta:
+             if not isinstance(self.imeta['scanlist'],list): self.imeta['scanlist'] = str(self.imeta['scanlist']).split(',')
+        if 'fields' not in self.imeta:
+            fields                          =   self.imeta['science'].split(',') + self.imeta['phase_cal'].split(',') + self.imeta['delay_bandpass_cal'].split(',') + self.imeta['flux_cal'].split(',')
+            self.imeta['fields']            =   list(dict.fromkeys(fields))
+        if self.build_path:
+            FOLDERS                         =   ['outputimages', 'bandpassplots', 'gainplots','caltables', 'plotfolder']
+            FILES                           =   ['listfile', 'flagfile', 'flagsummaryfile', 'flagcmd']
+            update_path                     =   self.update_path_fromkeys('outdir')
+            update_path(*FOLDERS)
+            update_path(*FILES, files=True)
+        
         self.imeta                          =   self.attr_fromdict(self.imeta)
         for key in self.imeta:
                 setattr(self, key, self.imeta[key])
         
-        # # TELESCOPE ----------------------------------------------------------
-        # self.telescope              =   self.imeta['telescope']
-        # self.refant                 =   self.imeta['refant']
-
-        # # SOURCES ------------------------------------------------------------
-        # self.phase_cal              =   self.imeta['phase_cal'].split(',')              # type: ignore
-        # self.science                =   self.imeta['science'].split(',')                # type: ignore
-        # self.delay_bandpass_cal     =   self.imeta['delay_bandpass_cal'].split(',')           # type: ignore
-        # self.flux_cal               =   self.imeta['flux_cal'].split(',')               # type: ignore
-
-        # # FOLDERS & FILES ----------------------------------------------------
-        # self.cal_tables             =   self.imeta['cal_tables'].split(',')             # type: ignore
-        # self.output_images          =   self.imeta['output_images'].split(',')          # type: ignore
-        # self.listfile               =   self.imeta['listfile']
-
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
@@ -92,9 +101,9 @@ class MetaData(ConfigStream):
      
     def dict_fromlistobs(self, listobs_dict):   # TODO listobs_dict = listobs(vis, listfile=False, verbose=True)
         fields                      =   {k.replace('field_', ''):{'name':v['name']} for k,v in listobs_dict.items() if 'field_' in k}
-        # scans                       =   {k.replace('scan_', ''):v['0']['FieldName'] for k,v in listobs_dict.items() if 'scan_' in k}
+        scans                       =   {k.replace('scan_', ''):{'t0':v['0']['BeginTime'],'t1':v['0']['EndTime']} for k,v in listobs_dict.items() if 'scan_' in k}
         for fk in fields:
-            fields[str(fk)]['scans']=[k.replace('scan_', '') for k,v in listobs_dict.items() if ('scan_' in k) and (v['0']['FieldId']==int(fk))]
+            fields[str(fk)]['scans']=   [k.replace('scan_', '') for k,v in listobs_dict.items() if ('scan_' in k) and (v['0']['FieldId']==int(fk))]
 
     def dict_fromsmd(self, msmd):
         msmd.open(self.config.vis)
