@@ -2,11 +2,19 @@ from collections import defaultdict
 import ast, glob, shutil, warnings, os, sys
 import argparse, subprocess
 from pathlib import Path
-from importlib.metadata import version
+# from importlib.metadata import version
 from datetime import datetime
 from pprint import pprint
 from textwrap import dedent
 pipedir = str(Path.home())+'/.setisim/'
+
+python_version = sys.version_info[1]
+if python_version >7:
+    from importlib.metadata import version
+elif python_version==7:
+    from importlib_metadata import version
+else:
+    raise ValueError("Python version not supported")
 
 c={"x":"\033[0m","g":"\033[32m", "r":"\033[31m", "b":"\033[34","c":"\033[36m","w":"\033[0m"}
 

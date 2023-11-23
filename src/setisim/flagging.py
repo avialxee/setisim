@@ -2,7 +2,7 @@ import numpy as np
 
 class FlagData:
     """
-    TODO : 
+    TODO:
     [ ]     :   tfcrop and rflag should be applied to supplied scans
     [ ]     :   inpfile to run only one instance of flagdata.
     """

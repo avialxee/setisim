@@ -53,3 +53,17 @@ def save_fig(plt, fig, kind='base64', output='output.jpg'):
         print("saved {}".format(newPath))
         plt.close()
         return newPath
+
+def find_clusters(array):
+    """
+    from array find if there are sub populations/clusters and give back the central values for each cluster
+
+    TODO to find cluster use the max value and bin with a constant number suitable for dataset
+    fit polynomial function to the data,
+    create a bisector and see if we find more than two points
+    """
+    bins                        =   np.size(array)//20 or 1    # ensures that 20 datapoints are there
+    max_clusters                =   2
+    max_val                     =   np.max(array)
+
+    pass

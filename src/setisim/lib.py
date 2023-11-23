@@ -15,7 +15,7 @@ class  Lib:
                 
     def cal_direction_independent(self,  scan='', timerange='', solint='int', flagbackup=False, name='i'):
         """        
-        [ ] need pipeline metadata to be updated for chooosen pipeline_steps as we need previous values
+        TODO: need pipeline metadata to be updated for chooosen pipeline_steps as we need previous values
         """
         # 
         os.system(f"rm -rf {self.config.caltables}/*")
@@ -30,7 +30,7 @@ class  Lib:
         # pl_bandpass(plotbandpass, self.config, self.config.refant, caltable=gc.caltable)
         
         
-        # final gain calibration # TODO change solint to a better number
+        # final gain calibration # TODO: change solint to a better number
         gc.field            =   self.config.flux_cal
         gc.name             =   'ii'
         gc.solve(append=False, gaintable=gaintable,interp=['nearest,nearestflag', 'nearest,nearestflag' ], minsnr=2.0, name='ii')
@@ -53,7 +53,16 @@ class  Lib:
         gc.field        =   self.config.science
         gc.apply(['','',self.config.science],['','', 'nearest'])
         return gc.tablepaths
-        
+
+    
+
+    def find_solint(self):
+        """
+        TODO: look for solint from list of values, 
+        find optimal value so that we get enough detections 
+        from each scan for the snr of percentile population recommended.
+        """
+        pass
     
     def gen_listobs(self):
         from casatasks import listobs
@@ -213,13 +222,13 @@ class  Lib:
 
     def continuum_subtraction(self):
         """
-        TODO use setisim.imaging.fast_spectral_imaging
+        TODO: use setisim.imaging.fast_spectral_imaging
         """
         pass
 
     def selfcal_setmodel(self):
         """
-        TODO Remove the continuum for background using uvcontsub.
+        TODO: Remove the continuum for background using uvcontsub.
         and then select timerange or spw for imaging.
         """
         from setisim.imaging import tclean_model
@@ -261,8 +270,10 @@ class  Lib:
             
 
     def run_auxilliary(self, choosensteps=[]):
-        
-        aux_steps=[                                                                         # TODO : Keep all steps here for uniformity as there are two steps inside dical
+        """
+        TODO: pipeline should stop after calibration and imaging code requires --timerange/ --frequency else one can use manual steps.
+        """
+        aux_steps=[                                                                         # TODO: Keep all steps here for uniformity as there are two steps inside dical
             
             'self.gen_listobs',
             'self.flag_init',
