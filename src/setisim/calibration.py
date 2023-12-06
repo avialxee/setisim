@@ -254,7 +254,7 @@ class CalTasks(Cal):
         if not len(self.gainfield_interp):
             self.gainfield_interp=list(zip(gainfield,interp))
         if not len(self.gainfield_interp)==len(self.gaintable): 
-            raise ValueError(f'Check if all values for (gainfield,interpolation) are inserted w.r.t gaintable for "{self.name}"')
+            print(f'Check if all values for (gainfield,interpolation) are inserted w.r.t gaintable for "{self.name}"')
         gainfield,interp        =   list(zip(*self.gainfield_interp))
 
         from casatasks import applycal

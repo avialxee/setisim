@@ -20,8 +20,22 @@ def exec(listtuple):
     for t in listtuple:
         print(f"{t[2]}\n")
         eval(t[0])(*t[1])
+    
+def build_path(filepath):
+    opt = filepath
+    if path.exists(filepath):
+        numb = 1
+        while path.exists(filepath):
+            filepath = "{0}_{2}{1}".format(
+                *path.splitext(opt) + (numb,))
+            try :
+                if path.exists(filepath):
+                    numb += 1 
+            except:
+                pass
+    return filepath
 
-def save_fig(plt, fig, kind='base64', output='output.jpg'):
+def save_fig(plt, fig, kind='base64', output='output.jpg', outfolder='output'):
     if kind == 'base64':
         buf = io.BytesIO()
         fig.savefig(buf, format='png', bbox_inches='tight',
@@ -34,9 +48,9 @@ def save_fig(plt, fig, kind='base64', output='output.jpg'):
         plt.show()
         return 'plotted'
     else :
-        if not path.exists('output'):
-            makedirs('output')
-        newPath = 'output/'+output
+        if not path.exists(outfolder):
+            makedirs(outfolder)
+        newPath = f"{outfolder}/{output}"
         opt = newPath
         if path.exists(newPath):
             numb = 1
@@ -53,6 +67,22 @@ def save_fig(plt, fig, kind='base64', output='output.jpg'):
         print("saved {}".format(newPath))
         plt.close()
         return newPath
+    
+def tolist(list_oflists):
+        """
+        flattens effeciently a list of list.
+        """
+        flatten_list=[]
+        extend_list=flatten_list.extend
+        if isinstance(list_oflists, list):
+            for l in list_oflists: 
+                if isinstance(l, list):
+                    extend_list(l)
+                else:
+                    flatten_list.append(l)
+        else:
+            flatten_list.append(list_oflists)
+        return flatten_list
 
 def find_clusters(array):
     """

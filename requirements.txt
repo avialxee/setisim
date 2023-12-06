@@ -8,3 +8,4 @@ astropy
 numpy
 pyvirtualdisplay
 scipy
+protobuf==3.20

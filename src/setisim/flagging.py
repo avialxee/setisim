@@ -24,7 +24,7 @@ class FlagData:
         self.shadows        =   False
 
         self.badant         =   ''
-        self.clip           =   config.clip
+        self.clip           =   config.clip #TODO: testing without clip
 
         self.tfcrop         =   False
         self.rflag          =   False
@@ -40,12 +40,15 @@ class FlagData:
         if self.tfcrop      :   self.cmd.append(f"mode='tfcrop'")
         
         flagdata(self.vis, mode='list', inpfile=self.cmd, flagbackup=self.flagbackup, action=self.action, timecutoff=6.0, freqcutoff=6.0, freqfit='line')
-        if self.inpfile: flagdata(self.vis, mode='list', inpfile=self.inpfile, flagbackup=self.flagbackup, action=self.action, savepars=True, overwrite=True, outfile=self.flagcmd)    
+        # TODO: test the following:
+        # if self.inpfile: 
+        #     flagdata(self.vis, mode='list', inpfile=self.inpfile, flagbackup=self.flagbackup, action=self.action, savepars=True, overwrite=True, outfile=self.flagcmd)    
         
-        if self.inpfile     :   
-            with open(self.inpfile, 'r') as inp: 
-                inptxt      =   inp.read()
-                self.cmd.append(list(filter(bool, inptxt.splitlines())))
+        # if self.inpfile     :   
+        #     print("Executing from file..")
+        #     with open(self.inpfile, 'r') as inp: 
+        #         inptxt      =   inp.read()
+        #         self.cmd.append(list(filter(bool, inptxt.splitlines())))
             
     def flagsummary(self, flagdata, **kwargs):
         

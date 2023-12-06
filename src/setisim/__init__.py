@@ -55,7 +55,10 @@ def read_inputfile(folder,inputfile='config.inp'):
                                                 av=a.split('~')
                                                 av=list(range(int(av[0]), int(av[1])+1))
                                             else:
-                                                av+=[int(a)]
+                                                try:
+                                                    av+=[int(a)]
+                                                except:
+                                                    av=v
                                         v=av
                                         
                                     if ',' in v:
@@ -110,7 +113,7 @@ def pipeline_step(telescope='GMRT', dict=False):
     cs.read()
     l=Lib(cs,'')
     l.solve=False
-    l.run_auxilliary()
+    l.run()
     # print(l.steps)
     if dict: 
         return l.steps
@@ -145,7 +148,7 @@ def first_run():
     print(f"Written casa_path : {casa_path}")
 
 
-def run_aux(config, steps, casalogf, pipedir):
+def exec_steps(params, steps, debug):
     """
     TODO:run commands directly from params/config and steps
     """
@@ -154,13 +157,17 @@ def run_aux(config, steps, casalogf, pipedir):
     cs=ConfigStream(folder=input_folder, inputfile=files)
     cs.build_path = True
     cs.read()
-    
     l=Lib(cs,'')
     print(f"executing following steps:")
-    l.run_auxilliary(steps)
+    l.run(steps)
     print(l.steps)
     l.solve=True
-    l.run_auxilliary(steps)
+    if debug:
+        cs.debug()
+        print(f"\n\nThe Input {c['c']}Parameters{c['x']} are shown here:\n")
+        print(params)
+    else:
+        l.run(steps)
     
 
 def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
@@ -205,7 +212,7 @@ input_params.add_argument('-f', '--fitsfile',   type=str,   help='FITS file path
 input_params.add_argument('-t', '--timerange',  type=str,   help='input timerange for ex: 5:04:12.8~15:04:27.8')
 input_params.add_argument('-sec','--seconds',  type=str,   help='input time interval for ex: 509')
 input_params.add_argument('-F', '--frequency',  type=float, help='input rest frequency in MHz for ex: 599.934')
-input_params.add_argument('-m',  '--ms-file',  type=str,   help='measurement set(.MS) path')
+input_params.add_argument('-m', '--ms-file',  type=str,   help='measurement set(.MS) path')
 input_params.add_argument('-n', '--n-cores', type=int,   help='specify number of cores to use MPI', default=1)
 input_params.add_argument('-rc','--read-config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
 
@@ -213,10 +220,11 @@ parser.add_argument('--pipe',help='pipeline mode',action='store_true')
 parser.add_argument('--casalogf',help='This file is used for storing logs from CASA task run')
 
 operations=parser.add_argument_group('operations',)
-operations.add_argument('--fitstovis',  action='store_true',  help='convert fits to visfile, requires -vis and -fits', )
+operations.add_argument('--fitstovis',  action='store_true',  help='convert fits to visfile, requires --ms-file and --fitsfile', )
 operations.add_argument('--calibrate',  action='store_true',  help='calibrate the visibility file', )
 operations.add_argument('--cc',         action='store_true',  help='create configuration file from default values',)
 operations.add_argument('--bind',       action='store_true',  help='bind setisim with your casa path',)
+operations.add_argument('--debug',      action='store_true',  help='Show Parameters used for debugging',)
 
 args=parser.parse_known_args()[0]
 parser.add_argument('-h',action='help', help="shows this help menu")
@@ -260,11 +268,13 @@ def _args_sanitycheck(args):
 def cli():
     args=parser.parse_args()
     
-    timerange       =   args.timerange
-    n_cores         =   args.n_cores
-    fitsfile        =   args.fitsfile
+    timerange           =   args.timerange
+    n_cores             =   args.n_cores
+    fitsfile            =   args.fitsfile
 
-    if args.ms_file: params['vis']=args.ms_file
+    if args.ms_file     :   params['vis']       =   args.ms_file
+    if args.timerange   :   params['timerange'] =   timerange
+    if args.seconds     :   params['seconds']   =   args.seconds
 
     if args.version:
         print(version('setisim'))
@@ -276,9 +286,9 @@ def cli():
         first_run()
     
     elif not args.pipe :
-        casadir,setisimpath,status,msg=_allvitals_check(args)
+        casadir,setisimpath,status,msg          =   _allvitals_check(args)
         if status:
-            strargs = []
+            strargs     =   []
             for k,v in vars(args).items():
                 if v:
                     if str(v).lower()=='true':strargs.append(f'--{k}')
@@ -300,13 +310,20 @@ def cli():
         
         elif args.pipe_step: 
             
-            steps = args.pipe_step.split(',')
+            steps       =   args.pipe_step.split(',')
             for i,step in enumerate(steps):
                 if '~' in str(step):
-                    a,b=step.split('~')
+                    a,b =   step.split('~')
                     steps.pop(i)
-                    steps.extend(list(range(int(a),int(b))))
-            steps.sort()
-            
-        casalogf=args.casalogf
-        run_aux(params, steps, casalogf, pipedir)
+                    steps.extend(list(range(int(a),int(b)+1)))
+            # steps.sort()
+        # if args.seconds:
+
+        elif args.seconds:
+            """
+            This is imaging step without any pipeline steps specified.
+            """
+            steps = [8,9,10]
+
+        casalogf        =   args.casalogf
+        exec_steps(params, steps, args.debug)

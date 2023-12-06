@@ -8,33 +8,16 @@ build methods to fetch scans from vis
 """
 
 
-def fetch_sources(vis):
-    """
-    fetch calibrator and target sources from the measurement set and return dictionary
-    """
-    pmcalf = '0'
-    pmcals = '1'
-
-    bpcalf = '0'
-    bpcals = '3'
-
-    fdcalf = '0'
-    fdcals = '1'
-
-    targets = '2'
-    targetf = '1'
-
-    return {'pmcalf':pmcalf, 'pmcals':pmcals, 
-            'bpcalf':bpcalf, 'bpcals':bpcals,
-           'fdcalf':fdcalf, 'fdcals':fdcals,
-           'targetf':targetf, 'targets':targets
-           }
-
 class ConfigStream:
-    """
-    Is loaded first and used as lifeline of the code as long as the runtime lives
+    m="""
+    ConfigStream is loaded first and used as lifeline of the code as long as the runtime lives
     majorly from the config file and updates during the runtime.
+    ConfigStream.__dict__ has
+        imeta comes from input file, 
+        config coming from default value and 
+        there and the key,value pairs which are used out of the imeta, config.
     """
+    
     def __init__(self, folder='', inputfile='config.inp'):
         self.folder                 =   folder
         self.inputfile              =   inputfile
@@ -43,6 +26,12 @@ class ConfigStream:
         self.ifiles                 =   []
         self.wd                     =   '' 
         self.build_path             =   False
+    
+    def debug(self):
+        from setisim import c
+        print(self.m)
+        print(f"The {c['c']}ConfigStream{c['x']} processed is below:\n")
+        print(self.__dict__)
 
     def attr_fromdict(self, dictconfig):
         self.config = dictconfig
@@ -75,7 +64,7 @@ class ConfigStream:
             fields                          =   self.imeta['science'].split(',') + self.imeta['phase_cal'].split(',') + self.imeta['delay_bandpass_cal'].split(',') + self.imeta['flux_cal'].split(',')
             self.imeta['fields']            =   list(dict.fromkeys(fields))
         if self.build_path:
-            FOLDERS                         =   ['outputimages', 'bandpassplots', 'gainplots','caltables', 'plotfolder']
+            FOLDERS                         =   ['outputimages', 'bandpassplots', 'gainplots','caltables', 'plotfolder', 'imagingdumps']
             FILES                           =   ['listfile', 'flagfile', 'flagsummaryfile', 'flagcmd']
             update_path                     =   self.update_path_fromkeys('outdir')
             update_path(*FOLDERS)
@@ -112,6 +101,6 @@ class MetaData(ConfigStream):
     
     def save_json(self):
         """
-        a retrievable json 
+        TODO: a retrievable json 
         """
         pass

@@ -4,14 +4,20 @@
 from setisim.calibration import CalTasks
 from setisim.flagging import FlagData
 import os
-from setisim import Path
+from setisim import Path, c
+from setisim.util import tolist, build_path
+from astropy.time import Time, TimeDelta
 
+
+                # elif Path(self.vis).stem + '_calibrated'
 class  Lib:
     def __init__(self, config, msmeta, **kwargs):
         self.config         =   config
         self.msmeta         =   msmeta
         self.steps          =   []
         self.solve          =   False
+
+        self.timerange      =   ''
                 
     def cal_direction_independent(self,  scan='', timerange='', solint='int', flagbackup=False, name='i'):
         """        
@@ -59,8 +65,8 @@ class  Lib:
     def find_solint(self):
         """
         TODO: look for solint from list of values, 
-        find optimal value so that we get enough detections 
-        from each scan for the snr of percentile population recommended.
+        find optimal value so that we get enough detections at nominal SNR.
+        select from each scan for the snr of percentile population recommended.
         """
         pass
     
@@ -215,9 +221,20 @@ class  Lib:
         return T
 
     def split_field(self):
-        cal_vis=f"{self.config.science}_calibrated.ms"
+        cal_vis                                         =   f"{self.config.science}_calibrated.ms"
+        datacolumn                                      =   'corrected'
         from casatasks import mstransform
-        mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn='corrected', outputvis=cal_vis)
+        if self.config.seconds : 
+            i =  IMAGING(self.config.vis, self.config)
+            self.config.science                         =   i.fieldname
+            self.timerange                              =   i.timerange_from_instant(self.config.seconds)
+            print(f"Timerange selected for splitting data: {self.timerange}")
+            cal_vis                                     =   f"{i.fieldname}_time_split.ms"
+            datacolumn                                  =   'data'
+        
+        cal_vis                                         =   build_path(cal_vis)
+        mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn=datacolumn, timerange=self.timerange, outputvis=cal_vis)
+        
         self.config.vis=cal_vis
 
     def continuum_subtraction(self):
@@ -225,6 +242,14 @@ class  Lib:
         TODO: use setisim.imaging.fast_spectral_imaging
         """
         pass
+
+    # def timerange_subtraction(self, mstransform):
+    #     """
+    #     TODO: create visibility file with the specified timerange.
+    #     """
+    #     mstransform(vis=self.config.vis, field=self.config.science, timerange=self.timerange)
+
+    
 
     def selfcal_setmodel(self):
         """
@@ -234,46 +259,79 @@ class  Lib:
         from setisim.imaging import tclean_model
         imagename                               =   f"{Path(self.config.vis).stem}_model"
         print(imagename, self.config.vis)
-        tclean_model(self.config.vis, imagename=imagename)
+        tclean_model(self.config.vis, imagename=f"{self.config.imagingdumps}/{imagename}")
 
     def selfcal_iter(self):
         """
+        TODO: test running this, if it is complete
+        TESTED - G Jones solutions not found for all kind of solints.
         """
-        from setisim.imaging import tclean_selfcal_iter
+        from setisim.imaging import tclean_selfcal_iter, genpng
         from casatasks import mstransform, imstat
-        solints             =   ['8min', '7min', '4min', '3min', '1min']
-        for solint in solints:
+        from casatools import msmetadata
+        md=msmetadata()
+        md.open(self.config.vis)
+        effexptime=md.effexposuretime()['value']
+        
+        md.close()
+        print(effexptime, "is effective exposure time")
+        
+        if effexptime <= 120:
+            solints=['int', 'int', 'int']
+            print(f"Effective exposure time <= 2 minute.. So we only solve for solint='int'")
+        elif effexptime >= 960:
+            solints             =   ['8min', '7min', '4min', '3min', '1min']
+        else :
+            len_in_min          =   effexptime//60
+            if len_in_min>2:
+            
+                solint          =   list(range(1,int(len_in_min//2)))
+                solints         =   [str(sol)+'min' for sol in solint]
+            else:
+                solints         =   ['2min', '1min', '30s', '10s']
+            solints.append('int')
+        print("solints=",str(solints))
+        for i,solint in enumerate(solints):
             pc              =   self.phase_calibration(field='0', 
                                     solint=solint, scan='', timerange='', flagbackup=False, gaintable=[],
                                     )
             
-            itername=pc.name=   f'pselfcal_{solint}'
-            visname=f"{Path(self.config.vis)}_{itername}.ms"
-            pc.apply(interp =   ['linear'], applymode='calflag')
-            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=visname)
-            tclean_selfcal_iter(visname, imagename=itername)
-            print(imstat(visname))
+            itername=pc.name=   f'{Path(self.config.vis).stem}_pselfcal_{i}_{solint}'
+            pc.solve(interp =   ['nearest,nearestflag'], solnorm= False, minsnr=2.0, solint=solint)
+            pc.apply(interp =   ['linear'], gainfield=[''], applymode='calflag')
 
-        solints             =   ['2min', '2min']
-        for solint in solints:
+            visname=f"{itername}.ms"
+            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=visname)
+            tclean_selfcal_iter(visname, imagename=f"{self.config.imagingdumps}/{itername}")
+            
+            print(imstat(f"{self.config.imagingdumps}/{itername}.image.tt0"))
+        genpng(f"{self.config.imagingdumps}/{itername}.image.tt0",0,out=f"{Path(self.config.vis).stem}_{itername}", norm_max=None, kind='jpg', outfolder=self.config.outputimages)
+        if effexptime <= 180:
+            solints=['int', 'int']
+            print(f"Effective exposure time <= 3 minute.. So we only solve for solint='int'")
+        else:
+            solints=['2min', '2min']
+        for i,solint in enumerate(solints):
             gc              =   self.gain_calibration( 
                                     field='0', 
                                     solint=solint, scan='', timerange='', flagbackup=False, gaintable=[],
                                     )
-            gc.solve(interp =   ['nearest,nearestflag'], solnorm=False, parang=True, minsnr=2.0)
-            itername=gc.name=   f'gselfcal_{solint}'
-            visname=f"{Path(self.config.vis)}_{itername}.ms"
-            gc.apply(interp =   ['linear'], applymode='calflag')
+            itername=gc.name=   f'{Path(self.config.vis).stem}_gselfcal_{i}_{solint}'
+            gc.solve(interp =   ['nearest,nearestflag'], solnorm=False, parang=True, minsnr=2.0, solint=solint)
+            gc.apply(interp =   ['linear'], gainfield=[''], applymode='calflag')
+                        
+            visname=f"{itername}.ms"
             mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=visname)
-            tclean_selfcal_iter(visname, imagename=itername)
-            print(imstat(visname))
-            
+            tclean_selfcal_iter(visname, imagename=f"{self.config.imagingdumps}/{itername}")
+            print(f"{self.config.imagingdumps}/{itername}.image.tt0")
+        genpng(f"{self.config.imagingdumps}/{itername}.image.tt0",0,out=f"{Path(self.config.vis).stem}_{itername}", norm_max=None, kind='jpg', outfolder=self.config.outputimages)
 
-    def run_auxilliary(self, choosensteps=[]):
+
+    def run(self, choosensteps=[]):
         """
         TODO: pipeline should stop after calibration and imaging code requires --timerange/ --frequency else one can use manual steps.
         """
-        aux_steps=[                                                                         # TODO: Keep all steps here for uniformity as there are two steps inside dical
+        lib_steps=[                                                                         # TODO: Keep all steps here for uniformity as there are two steps inside dical
             
             'self.gen_listobs',
             'self.flag_init',
@@ -284,13 +342,89 @@ class  Lib:
             'self.diagnostics',
             'self.gen_flagsummary',
             'self.split_field',
-            'self.selfcal_setmodel'
+            'self.selfcal_setmodel',
+            'self.selfcal_iter'
             
         ]
-        if not choosensteps: choosensteps=list(range(len(aux_steps)))
+        if not choosensteps: choosensteps=list(range(len(lib_steps)))
         
         if self.solve:
             for i in choosensteps:
-                eval(aux_steps[int(i)])()
+                print(f"executing {lib_steps[int(i)].replace('self.', '')}")
+                eval(lib_steps[int(i)])()
         else:
-            for i in choosensteps: self.steps.append(aux_steps[int(i)].replace('self.', '')) # HACK: remove replace self to something more intuitive
+            for i in choosensteps: self.steps.append(lib_steps[int(i)].replace('self.', '')) # HACK: remove replace self to something more intuitive
+
+
+
+class IMAGING:
+    from setisim.metadata import msmetadata
+    md=msmetadata()
+    def __init__(self, vis, config, meta=None):
+        self.vis                                =   vis
+        self.config                             =   config
+        self.meta                               =   meta
+        
+        self.fieldname                          =   None
+        self.fieldid                            =   0
+
+        self._vitals_check()
+
+    def _vitals_check(self):
+        """
+        Since we can only image one source per call.
+        check from metadata and config file if the science target name is present and update field id
+        else assume science field id=0
+        """        
+        if self.vis and Path(self.vis).exists():
+            if self.config:
+                if 'science' in self.config.__dict__:
+                    print("Science is there..doing the needful")
+                    self.fieldname              =   self.config.science
+                    
+                    self.md.open(self.vis)
+                    try:
+                        self.fieldid            =   self.md.fieldsforname(self.fieldname)
+                    except:
+                        self.fieldid            =   0
+                        self.fieldname          =   tolist(self.md.namesforfields(self.fieldid))[0]
+
+                    self.btime                  =   self.md.timesforfield(self.fieldid)[0]
+                    s                           =   self.md.scansfortimes(self.btime)[0]
+                    self.inttime                =   self.md.exposuretime(scan=s)['value']
+                    self.metams                 =   self.md.summary()                       # TODO: make this inside metadata class
+                    
+                    self.md.close()
+                    self.fieldid                =   tolist(self.fieldid)[0]
+        else:
+            print(f"{c['r']}Failed! Is {self.vis} a valid path? {c['x']}")
+            exit(0)
+
+        
+
+    def timerange_from_instant(self,ti):
+        """
+        This function takes time instant and creates a timerange that can be supplied to CASA task mstransform.
+
+        Example:
+
+        ```
+        ti  =   '9~24'
+        ti  =   '9'
+        ```
+
+        BUG: Fails for time between two different dates.
+        """
+        ti                                      =   ti.split('~')
+        t_d0                                    =   TimeDelta(ti[0], format='sec')
+        btime                                   =   Time(self.btime/24/60/60, format='mjd')
+        print(btime.to_value('isot'))
+        inttime                                 =   TimeDelta(self.inttime, format='sec')
+        t0                                      =   btime + t_d0 - inttime#/2
+        t1                                      =   btime + t_d0 + inttime#/2
+        if len(ti)==2: 
+                t_d1                            =   TimeDelta(ti[1], format='sec')
+                t1                              =   btime + t_d1 + inttime#/2
+        timerange                               =   f"{t0.strftime('%H:%M:%S.%f')}~{t1.strftime('%H:%M:%S.%f')}"
+
+        return timerange

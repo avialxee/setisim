@@ -21,7 +21,7 @@ setup(
     long_description=desc,
     long_description_content_type = "text/markdown",
     install_requires=["astropy", "matplotlib", "numpy", "pyvirtualdisplay",
-     "casatasks", "casatools", "casadata", "casaplotms", "casaviewer"
+     "casatasks", "casatools", "casadata", "casaplotms", "casaviewer", "protobuf<=3.20"
                       ],
     extras_require = {
         "dev" : ["pytest>=3.7",

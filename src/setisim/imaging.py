@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
-from setisim.util import plt, WCS, np, colors, AnchoredSizeBar, save_fig        # type: ignore
+from matplotlib import pyplot as plt
+from setisim.util import WCS, np, colors, AnchoredSizeBar, save_fig        # type: ignore
 from pyvirtualdisplay import Display
-
+from setisim.util import tolist
 from casatasks import tclean, imstat
-from casatools import image as IA
+from casatools import image as IA, msmetadata
 
-def genpng(img, chno=0, out='output.jpg', norm_max=None, **kwargs):
+def genpng(img, chno=0, out='output.jpg', norm_max=None,outfolder='output', **kwargs):
     """
     TODO :
     remove unnecessary hardcoded parts of the code
@@ -62,7 +63,7 @@ def genpng(img, chno=0, out='output.jpg', norm_max=None, **kwargs):
                    )
     ax.add_artist(scalebar)
     kind = kwargs['kind'] or 'jpg'
-    save_fig(plt, fig, kind, output=out+'.jpg')
+    save_fig(plt, fig, kind, output=out+'.jpg', outfolder=outfolder)
 
 def tclean_spectral_image(vis, imagename, rest_freq, suffix='', norm_max=None):
     os.system(f'rm -rf {imagename}.*')
@@ -218,7 +219,7 @@ def plotd(plotms, config, z=1.5, xax=[], yax=[], model=False, **kwargs):
 
 def tclean_model(vis, imagename, imsize=900, cell='1.0arcsec', threshold='1.0mJy', parallel=False):
     """
-    created from the NCRA CASA tutorial by Ruta Kale : http://www.ncra.tifr.res.in/~ruta/ras-tutorials/CASA-tutorial.html
+    parameters selected from the NCRA CASA tutorial by Ruta Kale : http://www.ncra.tifr.res.in/~ruta/ras-tutorials/CASA-tutorial.html
     Running two iterations so that a Ctrl-C command wont corrupt the visibilities.
     """
     steps, savemodel, restoration, calcpsf, calcres, niter = [0,1], ['none', 'modelcolumn'], [True, False], [True, False], [True, False], [2000, 0]
@@ -234,7 +235,7 @@ def tclean_model(vis, imagename, imsize=900, cell='1.0arcsec', threshold='1.0mJy
                                 robust          =   0,
                                 weighting       =   'briggs',
                                 specmode        =   'mfs',
-                                nterms          =   2,
+                                nterms          =   1,
                                 niter           =   niter[i],
                                 usemask         =   'auto-multithresh',
                                 minbeamfrac     =   0.1,
@@ -268,7 +269,7 @@ def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold=
                                 robust          =   0,
                                 weighting       =   'briggs',
                                 specmode        =   'mfs',
-                                nterms          =   2,
+                                nterms          =   1,
                                 niter           =   3000,
                                 usemask         =   'auto-multithresh',
                                 minbeamfrac     =   0.1,
@@ -281,7 +282,7 @@ def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold=
                                 wbawp           =   False,
                                 restoration     =   True,
                                 savemodel       =   'modelcolumn',
-                                cyclefactor     =   0.5,
+                                cyclefactor     =   0.3,
                                 parallel        =   parallel,
                                 interactive     =   False
             )
@@ -326,3 +327,4 @@ def selfcal_all(calibrated_csource, rest_freq):
             print(f'{e}')
             pass
     tclean_continuum_image(model_dict['model_vis'], 'whole_continuum', '_contonly')
+

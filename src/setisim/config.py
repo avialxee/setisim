@@ -25,6 +25,7 @@ gainplots               =   'gain/'
 listfile                =   'listobs.txt'
 flagfile                =   'flag.txt'
 plotfolder              =   'plots/'
+imagingdumps            =   'imaging_dumps/'
 
 # -------- Flagging --------------------------------
 quackinterval           =   10.0
