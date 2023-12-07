@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
 from matplotlib import pyplot as plt
-from setisim.util import WCS, np, colors, AnchoredSizeBar, save_fig        # type: ignore
+from astropy.wcs import WCS
+from matplotlib.pyplot import plot as plt
+import matplotlib.colors as colors
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from setisim.util import np, save_fig        # type: ignore
 from pyvirtualdisplay import Display
 from setisim.util import tolist
 from casatasks import tclean, imstat

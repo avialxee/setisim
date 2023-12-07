@@ -1,12 +1,9 @@
 import glob, io, base64
 from os import curdir, path, makedirs, remove, getcwd
 from shutil import rmtree
-from pprint import pprint
+# from pprint import pprint
 import numpy as np
-from astropy.wcs import WCS
-from matplotlib.pyplot import plot as plt
-import matplotlib.colors as colors
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+
 
 def __clear_tmp(wd,filename):
     filelist = glob.glob(path.join(wd, filename+'*'))

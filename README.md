@@ -17,8 +17,10 @@ pip install -e .[dev]
 >[Under Progress]
 
 ```bash
-usage: setisim [-f FITSFILE] [-t TIMERANGE] [-sec SECONDS] [-F FREQUENCY] [-m MS_FILE] [-n N_CORES] [-rc CONFIG_FILE] [--pipe]
-               [--casalogf CASALOGF] [--fitstovis] [--calibrate] [--cc] [--bind] [-h] [-v] [-p {1,2,3...}]
+usage: setisim [-f FITSFILE] [-t TIMERANGE] [-sec SECONDS] [-F FREQUENCY]
+               [-m MS_FILE] [-n N_CORES] [-rc CONFIG_FILE] [--pipe]
+               [--casalogf CASALOGF] [--fitstovis] [--calibrate] [--cc]
+               [--bind] [--debug] [-h] [-v] [-p {1,2,3...}]
 
 pipeline for SETI Synthesis Imaging
 
@@ -45,10 +47,11 @@ input parameters:
                         configuration file for pipeline run
 
 operations:
-  --fitstovis           convert fits to visfile, requires -vis and -fits
+  --fitstovis           convert fits to visfile, requires --ms-file and --fitsfile
   --calibrate           calibrate the visibility file
   --cc                  create configuration file from default values
   --bind                bind setisim with your casa path
+  --debug               Show Parameters used for debugging
 
 pipeline_step:
   select calibration options for GMRT, e.g setisim -p 0~3
@@ -64,4 +67,5 @@ pipeline_step:
                         7:gen_flagsummary
                         8:split_field
                         9:selfcal_setmodel
+                        10:selfcal_iter
 ```

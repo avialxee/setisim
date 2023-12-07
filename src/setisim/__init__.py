@@ -1,11 +1,8 @@
-from collections import defaultdict
 import ast, glob, shutil, warnings, os, sys
 import argparse, subprocess
 from pathlib import Path
-# from importlib.metadata import version
+# from collections import defaultdict
 from datetime import datetime
-from pprint import pprint
-from textwrap import dedent
 pipedir = str(Path.home())+'/.setisim/'
 
 python_version = sys.version_info[1]
@@ -109,9 +106,9 @@ def pipeline_step(telescope='GMRT', dict=False):
     steps,_help={},''
     from setisim.lib import Lib
     from setisim.metadata import ConfigStream
-    cs=ConfigStream(folder=input_folder, inputfile=files)
-    cs.read()
-    l=Lib(cs,'')
+    # cs=ConfigStream(folder=input_folder, inputfile=files)
+    # cs.read()
+    l=Lib(None,'')
     l.solve=False
     l.run()
     # print(l.steps)
@@ -119,7 +116,7 @@ def pipeline_step(telescope='GMRT', dict=False):
         return l.steps
     else:        
         for i,k in enumerate(l.steps):_help += f"""{i}:{k}\n""" #:\t{','.join(v)}\n"""
-        return dedent(_help)
+        return _help
 
 def first_run():
     """
@@ -263,11 +260,21 @@ def _args_sanitycheck(args):
     """
     msg=f"{c['r']}Failed sanity check!{c['x']}"
     if args.timerange:
-        pass
+        t                           =   args.timerange.split('~')
+        try:
+            t0                      =   datetime.strptime(t[0], '%H:%M:%S.%f')
+            t1                      =   datetime.strptime(t[1], '%H:%M:%S.%f')
+        except Exception as e:
+            print(f"{c['r']}Failed! Is {args.timerange} a valid timerange? {c['x']}\n {e}")
+            exit(0)
+    if args.frequency:
+        if 'mhz' in args.frequency.lower():
+            args.frequency.lower().replace('mhz', 'MHz')
+            
 
 def cli():
     args=parser.parse_args()
-    
+    _args_sanitycheck
     timerange           =   args.timerange
     n_cores             =   args.n_cores
     fitsfile            =   args.fitsfile
@@ -275,6 +282,7 @@ def cli():
     if args.ms_file     :   params['vis']       =   args.ms_file
     if args.timerange   :   params['timerange'] =   timerange
     if args.seconds     :   params['seconds']   =   args.seconds
+    if args.frequency   :   params['frequency'] =   args.frequency
 
     if args.version:
         print(version('setisim'))
@@ -319,11 +327,16 @@ def cli():
             # steps.sort()
         # if args.seconds:
 
-        elif args.seconds:
+        elif args.seconds or args.timerange:
             """
             This is imaging step without any pipeline steps specified.
             """
-            steps = [8,9,10]
+            steps = [8,10,11]
+        
+        elif args.frequency:
+            steps = [8,9,10,11]
 
-        casalogf        =   args.casalogf
         exec_steps(params, steps, args.debug)
+# from pyinstrument import Profiler
+# with Profiler(interval=0.1) as profiler:     
+# profiler.print()

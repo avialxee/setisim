@@ -232,17 +232,35 @@ class  Lib:
             print(f"Timerange selected for splitting data: {self.timerange}")
             cal_vis                                     =   f"{i.fieldname}_time_split.ms"
             datacolumn                                  =   'data'
-        
+                
         cal_vis                                         =   build_path(cal_vis)
-        mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn=datacolumn, timerange=self.timerange, outputvis=cal_vis)
-        
+        try:
+            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn=datacolumn, timerange=self.timerange, outputvis=cal_vis)
+        except:
+            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn='data', timerange=self.timerange, outputvis=cal_vis)
+
         self.config.vis=cal_vis
 
     def continuum_subtraction(self):
         """
         TODO: use setisim.imaging.fast_spectral_imaging
         """
-        pass
+        
+        i =  IMAGING(self.config.vis, self.config)
+        continuum_line                              =   i.continuum_from_restfreq(self.config.frequency)
+            
+        from casatasks import uvcontsub
+        outputvis=f'{self.config.vis}.contsub'
+        os.system(f'rm -rf {outputvis}')
+
+        uvcontsub(
+                vis                                     =   self.config.vis,
+                field                                   =   self.config.science,
+                fitspec                                 =   f"{continuum_line}",        # The line free channels for continuum fitting
+                fitorder                                =   0,
+                outputvis                               =   outputvis
+                )
+        return outputvis
 
     # def timerange_subtraction(self, mstransform):
     #     """
@@ -343,8 +361,10 @@ class  Lib:
             'self.diagnostics',
             'self.gen_flagsummary',
             'self.split_field',
+            'self.continuum_subtraction',
             'self.selfcal_setmodel',
-            'self.selfcal_iter'
+            'self.selfcal_iter',
+            
             
         ]
         if not choosensteps: choosensteps=list(range(len(lib_steps)))
@@ -359,8 +379,7 @@ class  Lib:
 
 
 class IMAGING:
-    from setisim.metadata import msmetadata
-    md=msmetadata()
+    
     def __init__(self, vis, config, meta=None):
         self.vis                                =   vis
         self.config                             =   config
@@ -377,28 +396,44 @@ class IMAGING:
         check from metadata and config file if the science target name is present and update field id
         else assume science field id=0
         """        
+        from setisim.metadata import msmetadata
+        md=msmetadata()
         if self.vis and Path(self.vis).exists():
             if self.config:
                 if 'science' in self.config.__dict__:
-                    print("Science is there..doing the needful")
                     self.fieldname              =   self.config.science
-                    
-                    self.md.open(self.vis)
-                    try:
-                        self.fieldid            =   self.md.fieldsforname(self.fieldname)
-                    except:
-                        self.fieldid            =   0
-                        self.fieldname          =   tolist(self.md.namesforfields(self.fieldid))[0]
-
-                    self.btime                  =   self.md.timesforfield(self.fieldid)[0]
-                    s                           =   self.md.scansfortimes(self.btime)[0]
-                    self.inttime                =   self.md.exposuretime(scan=s)['value']
-                    self.metams                 =   self.md.summary()                       # TODO: make this inside metadata class
-                    
-                    self.md.close()
-                    self.fieldid                =   tolist(self.fieldid)[0]
                 
-                if 'timerange' in self.config.__dict__:
+                md.open(self.vis)
+                self.nchan                      =   md.nchan(0)
+                self.ch                         =   md.chanfreqs(0,'MHz')
+                # finding fieldid and fieldname
+                try:
+                    self.fieldid                =   md.fieldsforname(self.fieldname)
+                except:
+                    self.fieldid                =   0
+                    self.fieldname              =   tolist(md.namesforfields(self.fieldid))[0]
+                    self.config.science         =   self.fieldname
+                self.fieldid                    =   tolist(self.fieldid)[0]
+                
+                # getting begin time, integration time for timerange calculation
+                if self.config.seconds:
+                    self.btime                  =   md.timesforfield(self.fieldid)[0]
+                    s                           =   md.scansfortimes(self.btime)[0]
+                    self.inttime                =   md.exposuretime(scan=s)['value']
+                    
+                md.close()
+                
+                if self.config.frequency:
+                    if self.config.frequency    :   
+                        # try:
+                        self.config.frequency=float(self.config.frequency)
+                        self.continuum_line =   self.continuum_from_restfreq(self.config.frequency)
+                        # except Exception as e:
+                        #     print(f"{c['r']}Failed! Is {self.config.frequency} a valid Frequency? {c['x']}\n Tip: use integer only in the units of MHz\n{e}")
+                        #     exit(0)
+
+                                    
+                if self.config.timerange:                     # can check after we convert to timerange
                     t                           =   self.config.timerange.split('~')
                     try:
                         t0                      =   time.strptime(t[0], '%H:%M:%S.%f')
@@ -406,12 +441,45 @@ class IMAGING:
                     except Exception as e:
                         print(f"{c['r']}Failed! Is {self.config.timerange} a valid timerange? {c['x']}\n {e}")
                         exit(0)
-
-
         else:
             print(f"{c['r']}Failed! Is {self.vis} a valid path? {c['x']}")
             exit(0)
 
+    def find_continuum(self):
+        """
+        to search for good continuum line for fitting the continuum.
+        using the restfreq determine the channels
+        using the channels find the scatter in amplitude for that channel
+        use a percentile score of values below 20% of the scatter. or 10%/5% depending on if datapoints are less. 
+        """
+
+        # from casatools import ms
+        # import numpy as np
+        # from scipy.stats import percentileofscore 
+        # m                                       =   ms()
+        # m.open(self.config.vis)
+        # amps                                    =   m.getdata['amplitude'] 
+        # n                                       =   0   # FIXME:assuming 0 gives corrected data column
+        # # ci,cn                       =   [a,b]
+        # amps_scatter                            =   np.std(amps[n], axis=1)/np.median(amps[n], axis=1)
+        # select_amps                             =   amps[selected_channels]      
+        pass
+
+    def continuum_from_restfreq(self,restfreq):
+        """
+        takes restfreq as integer without unit 'MHz'
+        """
+        import numpy as np
+        edge_removednchan                       =   list(range(10,self.nchan-10))
+        chidx_restfreq                          =   (np.abs(self.ch - restfreq)).argmin()
+
+        remove_charound_line                    =   (chidx_restfreq-5, chidx_restfreq+5)
+        if edge_removednchan[-1] < remove_charound_line[1]:
+            edge_removednchan                   =   list(range(edge_removednchan[0], self.nchan+1))
+        spw                                     =   f"0:{edge_removednchan[0]}~{remove_charound_line[0]},0:{remove_charound_line[1]}~{edge_removednchan[-1]}"
+        
+        return spw
+        
         
 
     def timerange_from_instant(self,ti):
