@@ -7,6 +7,7 @@ refant                  =   'C00'
 spw                     =   ''
 minsnr                  =   3.0
 scanlist                =   []
+seconds                 =   ''
 # GOOD_SPECTRAL_WINDOW    =   '0:'
 
 # -------- Sources --------------------------------

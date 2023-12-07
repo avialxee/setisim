@@ -7,7 +7,7 @@ import os
 from setisim import Path, c
 from setisim.util import tolist, build_path
 from astropy.time import Time, TimeDelta
-
+import time
 
                 # elif Path(self.vis).stem + '_calibrated'
 class  Lib:
@@ -224,10 +224,11 @@ class  Lib:
         cal_vis                                         =   f"{self.config.science}_calibrated.ms"
         datacolumn                                      =   'corrected'
         from casatasks import mstransform
-        if self.config.seconds : 
+
+        if self.config.seconds or self.config.timerange :
             i =  IMAGING(self.config.vis, self.config)
             self.config.science                         =   i.fieldname
-            self.timerange                              =   i.timerange_from_instant(self.config.seconds)
+            self.timerange                              =   i.timerange_from_instant(self.config.seconds) if self.config.seconds else self.config.timerange
             print(f"Timerange selected for splitting data: {self.timerange}")
             cal_vis                                     =   f"{i.fieldname}_time_split.ms"
             datacolumn                                  =   'data'
@@ -396,6 +397,17 @@ class IMAGING:
                     
                     self.md.close()
                     self.fieldid                =   tolist(self.fieldid)[0]
+                
+                if 'timerange' in self.config.__dict__:
+                    t                           =   self.config.timerange.split('~')
+                    try:
+                        t0                      =   time.strptime(t[0], '%H:%M:%S.%f')
+                        t1                      =   time.strptime(t[1], '%H:%M:%S.%f')
+                    except Exception as e:
+                        print(f"{c['r']}Failed! Is {self.config.timerange} a valid timerange? {c['x']}\n {e}")
+                        exit(0)
+
+
         else:
             print(f"{c['r']}Failed! Is {self.vis} a valid path? {c['x']}")
             exit(0)
@@ -415,7 +427,7 @@ class IMAGING:
 
         BUG: Fails for time between two different dates.
         """
-        ti                                      =   ti.split('~')
+        ti                                      =   str(ti).split('~')
         t_d0                                    =   TimeDelta(ti[0], format='sec')
         btime                                   =   Time(self.btime/24/60/60, format='mjd')
         print(btime.to_value('isot'))
