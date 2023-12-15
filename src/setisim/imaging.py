@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
+import matplotlib
+
 from matplotlib import pyplot as plt
 from astropy.wcs import WCS
-from matplotlib.pyplot import plot as plt
+# from matplotlib.pyplot import plot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from setisim.util import np, save_fig        # type: ignore
@@ -10,6 +12,11 @@ from pyvirtualdisplay import Display
 from setisim.util import tolist
 from casatasks import tclean, imstat
 from casatools import image as IA, msmetadata
+old_matplotlib      = False
+if int(matplotlib.__version__.split('.')[1])<=3:
+    old_matplotlib  = True
+    print(f"Using older version of matplotlib...")
+    from matplotlib.colors import Normalize
 
 def genpng(img, chno=0, out='output.jpg', norm_max=None,outfolder='output', **kwargs):
     """
@@ -34,21 +41,24 @@ def genpng(img, chno=0, out='output.jpg', norm_max=None,outfolder='output', **kw
 #     p2 = int(pix.shape[0]*0.75)
 
 #     im = ax.imshow(pix[p1:p2,p1:p2].transpose(), origin='lower',  cmap=plt.cm.viridis)
-    if norm_max:
+    if old_matplotlib:
+        norm=Normalize()
+    elif norm_max:
         try:
             norm_max=float(norm_max)
-            im = ax.imshow(pix.transpose(), origin='lower',  
-                           cmap=plt.cm.gist_heat, interpolation="none",
-                           norm=colors.CenteredNorm(0.0,norm_max))
+            norm=colors.CenteredNorm(0.0,norm_max)
+            
         except:
-            im = ax.imshow(pix.transpose(), origin='lower',  
-                           cmap=plt.cm.gist_heat, interpolation="none",
-                           norm=colors.CenteredNorm(0.0))
+            norm=colors.CenteredNorm(0.0)         
         
     else:
-        im = ax.imshow(pix.transpose(), origin='lower',  
-                       cmap=plt.cm.gist_heat, interpolation="none",
-                       norm=colors.CenteredNorm(0.0))
+        norm=colors.CenteredNorm(0.0)
+    
+    
+    
+    im = ax.imshow(pix.transpose(), origin='lower',  
+                           cmap=plt.cm.gist_heat, interpolation="none",
+                           norm=norm)
         
     plt.colorbar(im, ax=ax)
     ax.set_xlabel('Right Ascension')
@@ -69,7 +79,7 @@ def genpng(img, chno=0, out='output.jpg', norm_max=None,outfolder='output', **kw
     kind = kwargs['kind'] or 'jpg'
     save_fig(plt, fig, kind, output=out+'.jpg', outfolder=outfolder)
 
-def tclean_spectral_image(vis, imagename, rest_freq, suffix='', norm_max=None):
+def tclean_spectral_image(vis, imagename, rest_freq, suffix='', norm_max=None, threshold='0.05Jy'):
     os.system(f'rm -rf {imagename}.*')
     tclean(
         vis                     =   vis, 
@@ -81,7 +91,7 @@ def tclean_spectral_image(vis, imagename, rest_freq, suffix='', norm_max=None):
         veltype                 =   'optical', 
         restfreq                =   rest_freq, 
         niter                   =   10000, 
-        threshold               =   '0.05Jy',          # type: ignore
+        threshold               =   threshold,          
         imsize                  =   [256,256], 
         cell                    =   '1arcsec', 
         pbcor                   =   True, 
@@ -261,7 +271,7 @@ def tclean_model(vis, imagename, imsize=900, cell='1.0arcsec', threshold='1.0mJy
     print(f"Model Created successfully!  -\t\t{imagename}")    
     return imagename
 
-def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold='0.5mJy', parallel=False):
+def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold='0.5mJy', parallel=False, niter=3000):
     tclean(                     
                                 vis             =   vis, 
                                 imagename       =   imagename,
@@ -274,7 +284,7 @@ def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold=
                                 weighting       =   'briggs',
                                 specmode        =   'mfs',
                                 nterms          =   1,
-                                niter           =   3000,
+                                niter           =   niter,
                                 usemask         =   'auto-multithresh',
                                 minbeamfrac     =   0.1,
                                 smallscalebias  =   0.6,

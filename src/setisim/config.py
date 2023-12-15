@@ -13,6 +13,8 @@ scanlist                =   []
 seconds                 =   ''
 timerange               =   ''
 frequency               =   ''
+iname                   =   ''
+sefd                    =   285.7                       # in Jy
 
 # -------- Sources --------------------------------
 science                 =   'B0329+54'

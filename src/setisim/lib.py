@@ -3,11 +3,12 @@
 
 from setisim.calibration import CalTasks
 from setisim.flagging import FlagData
-import os
+import os, sys
 from setisim import Path, c
 from setisim.util import tolist, build_path
 from astropy.time import Time, TimeDelta
 import time
+
 
                 # elif Path(self.vis).stem + '_calibrated'
 class  Lib:
@@ -18,6 +19,7 @@ class  Lib:
         self.solve          =   False
 
         self.timerange      =   ''
+        self.itername       =   0
                 
     def cal_direction_independent(self,  scan='', timerange='', solint='int', flagbackup=False, name='i'):
         """        
@@ -223,6 +225,8 @@ class  Lib:
     def split_field(self):
         cal_vis                                         =   f"{self.config.science}_calibrated.ms"
         datacolumn                                      =   'corrected'
+        chanaverage                                     =   False
+        chanbin                                         =   1
         from casatasks import mstransform
 
         if self.config.seconds or self.config.timerange :
@@ -232,12 +236,14 @@ class  Lib:
             print(f"Timerange selected for splitting data: {self.timerange}")
             cal_vis                                     =   f"{i.fieldname}_time_split.ms"
             datacolumn                                  =   'data'
+            chanaverage                                 =   True
+            chanbin                                     =   2
                 
         cal_vis                                         =   build_path(cal_vis)
         try:
-            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn=datacolumn, timerange=self.timerange, outputvis=cal_vis)
+            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn=datacolumn, timerange=self.timerange, outputvis=cal_vis, chanaverage=chanaverage, chanbin=chanbin)
         except:
-            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn='data', timerange=self.timerange, outputvis=cal_vis)
+            mstransform(vis=self.config.vis, field=self.config.science, spw=self.config.spw, datacolumn='data', timerange=self.timerange, outputvis=cal_vis, chanaverage=chanaverage, chanbin=chanbin)
 
         self.config.vis=cal_vis
 
@@ -260,6 +266,7 @@ class  Lib:
                 fitorder                                =   0,
                 outputvis                               =   outputvis
                 )
+        self.config.vis                                 =   outputvis
         return outputvis
 
     # def timerange_subtraction(self, mstransform):
@@ -285,13 +292,14 @@ class  Lib:
         TODO: test running this, if it is complete
         TESTED - G Jones solutions not found for all kind of solints.
         """
-        from setisim.imaging import tclean_selfcal_iter, genpng
+        from setisim.imaging import tclean_selfcal_iter
         from casatasks import mstransform, imstat
         from casatools import msmetadata
         md=msmetadata()
         md.open(self.config.vis)
-        effexptime=md.effexposuretime()['value']
-        
+        effexptime              =   md.effexposuretime()['value']
+        im                      =   IMAGING(self.config.vis, self.config)
+        threshold               =   im.rms
         md.close()
         print(effexptime, "is effective exposure time")
         
@@ -310,21 +318,22 @@ class  Lib:
                 solints         =   ['2min', '1min', '30s', '10s']
             solints.append('int')
         print("solints=",str(solints))
+        visfile                 =   self.config.vis
         for i,solint in enumerate(solints):
             pc              =   self.phase_calibration(field='0', 
                                     solint=solint, scan='', timerange='', flagbackup=False, gaintable=[],
                                     )
             
-            itername=pc.name=   f'{Path(self.config.vis).stem}_pselfcal_{i}_{solint}'
+            self.itername   =   pc.name=   f'{Path(visfile).stem}_pselfcal_{i}_{solint}'
             pc.solve(interp =   ['nearest,nearestflag'], solnorm= False, minsnr=2.0, solint=solint)
             pc.apply(interp =   ['linear'], gainfield=[''], applymode='calflag')
 
-            visname=f"{itername}.ms"
-            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=visname)
-            tclean_selfcal_iter(visname, imagename=f"{self.config.imagingdumps}/{itername}")
-            
-            print(imstat(f"{self.config.imagingdumps}/{itername}.image.tt0"))
-        genpng(f"{self.config.imagingdumps}/{itername}.image.tt0",0,out=f"{Path(self.config.vis).stem}_{itername}", norm_max=None, kind='jpg', outfolder=self.config.outputimages)
+            new_visname     =   f"{self.itername}.ms"
+            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=new_visname)
+            tclean_selfcal_iter(new_visname, imagename=f"{self.config.imagingdumps}/{self.itername}", threshold=threshold, niter=100*(i+1))
+            self.config.vis =   new_visname
+            print(imstat(f"{self.config.imagingdumps}/{self.itername}.image.tt0"))
+        # genpng(f"{self.config.imagingdumps}/{self.itername}.image.tt0",0,out=f"{Path(self.config.vis).stem}_{self.itername}", norm_max=None, kind='jpg', outfolder=self.config.outputimages)
         if effexptime <= 180:
             solints=['int', 'int']
             print(f"Effective exposure time <= 3 minute.. So we only solve for solint='int'")
@@ -335,17 +344,33 @@ class  Lib:
                                     field='0', 
                                     solint=solint, scan='', timerange='', flagbackup=False, gaintable=[],
                                     )
-            itername=gc.name=   f'{Path(self.config.vis).stem}_gselfcal_{i}_{solint}'
+            self.itername   =   gc.name=   f'{Path(visfile).stem}_gselfcal_{i}_{solint}'
             gc.solve(interp =   ['nearest,nearestflag'], solnorm=False, parang=True, minsnr=2.0, solint=solint)
             gc.apply(interp =   ['linear'], gainfield=[''], applymode='calflag')
                         
-            visname=f"{itername}.ms"
-            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=visname)
-            tclean_selfcal_iter(visname, imagename=f"{self.config.imagingdumps}/{itername}")
-            print(f"{self.config.imagingdumps}/{itername}.image.tt0")
-        genpng(f"{self.config.imagingdumps}/{itername}.image.tt0",0,out=f"{Path(self.config.vis).stem}_{itername}", norm_max=None, kind='jpg', outfolder=self.config.outputimages)
+            new_visname     =   f"{self.itername}.ms"
+            mstransform(vis=self.config.vis, field='0', spw='0', datacolumn='corrected', outputvis=new_visname)
+            
+            tclean_selfcal_iter(new_visname, imagename=f"{self.config.imagingdumps}/{self.itername}", threshold=threshold, niter=1000*(i+1))
+            print(f"{self.config.imagingdumps}/{self.itername}.image.tt0")
+            self.config.vis =   new_visname
+        print(self.itername, self.config.vis)
+        self.genimg() # fails in MPI runs so should be called outside the MPI run
+        
 
-
+    def genimg(self):
+        from setisim.imaging import genpng
+        if not self.itername : 
+            self.itername = self.config.iname
+        for itype in ["image"]#, "residual"]:
+        
+            imgname=f"{self.config.imagingdumps}/{self.itername}.{itype}.tt0"
+            out                 =   f"{Path(self.config.vis).stem}_{self.itername}_{itype}"
+            if self.itername in self.config.vis:
+                out             =   f"{Path(self.config.vis).stem}_{itype}"
+            
+            genpng(imgname,0,out=out, norm_max=None, kind='jpg', outfolder=self.config.outputimages)
+        
     def run(self, choosensteps=[]):
         """
         TODO: pipeline should stop after calibration and imaging code requires --timerange/ --frequency else one can use manual steps.
@@ -364,6 +389,7 @@ class  Lib:
             'self.continuum_subtraction',
             'self.selfcal_setmodel',
             'self.selfcal_iter',
+            'self.genimg'
             
             
         ]
@@ -406,6 +432,11 @@ class IMAGING:
                 md.open(self.vis)
                 self.nchan                      =   md.nchan(0)
                 self.ch                         =   md.chanfreqs(0,'MHz')
+                self.effexptime                 =   md.effexposuretime()['value']
+                self.bandwidth                  =   md.bandwidths(0)
+                self.nbaselines                 =   md.nbaselines()
+                self.npol                       =   md.ncorrforpol()[0]
+                
                 # finding fieldid and fieldname
                 try:
                     self.fieldid                =   md.fieldsforname(self.fieldname)
@@ -413,16 +444,20 @@ class IMAGING:
                     self.fieldid                =   0
                     self.fieldname              =   tolist(md.namesforfields(self.fieldid))[0]
                     self.config.science         =   self.fieldname
+
                 self.fieldid                    =   tolist(self.fieldid)[0]
                 
                 # getting begin time, integration time for timerange calculation
+                
                 if self.config.seconds:
-                    self.btime                  =   md.timesforfield(self.fieldid)[0]
+                    self.btime                  =   md.timesforfield(self.fieldid[0])[0]
                     s                           =   md.scansfortimes(self.btime)[0]
                     self.inttime                =   md.exposuretime(scan=s)['value']
                     
                 md.close()
-                
+
+                self.rms                        =   self.calc_rms()
+                print(f"Threshold for selected data: {self.rms}")
                 if self.config.frequency:
                     if self.config.frequency    :   
                         # try:
@@ -444,6 +479,28 @@ class IMAGING:
         else:
             print(f"{c['r']}Failed! Is {self.vis} a valid path? {c['x']}")
             exit(0)
+    def calc_rms(self):
+        """
+        formula :
+
+        rms = sigma * SEFD * sqrt(2*bandwidth/n_pol*t_obs*N_baseline)
+        N_baseline = N(N-1)/2 ; N = no. of antennas
+
+        Note : 2*bandwidth due to amp,phase both recorded
+
+        rms = sigma * SEFD * sqrt(bandwidth/n_pol*t_obs*N(N-1))
+        """
+        import numpy as np
+        
+        rms_default =   '30.0mJy'
+        sigma       =   5
+        rms         =   sigma*self.config.sefd*np.sqrt(self.bandwidth/(self.npol*self.effexptime*self.nbaselines))
+        if (not np.isnan(rms)) and rms<30:
+            rms     =   rms*0.001
+            rms     =   f"{np.round(rms,1)}mJy"
+        else:
+            rms     =   rms_default
+        return rms
 
     def find_continuum(self):
         """
@@ -477,7 +534,8 @@ class IMAGING:
         if edge_removednchan[-1] < remove_charound_line[1]:
             edge_removednchan                   =   list(range(edge_removednchan[0], self.nchan+1))
         spw                                     =   f"0:{edge_removednchan[0]}~{remove_charound_line[0]},0:{remove_charound_line[1]}~{edge_removednchan[-1]}"
-        
+        if int(remove_charound_line[1])>=int(edge_removednchan[-1]):
+            spw                                 =   f"0:{edge_removednchan[0]}~{remove_charound_line[0]}"
         return spw
         
         

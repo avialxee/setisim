@@ -1,6 +1,7 @@
 import ast, glob, shutil, warnings, os, sys
 import argparse, subprocess
 from pathlib import Path
+import readline
 # from collections import defaultdict
 from datetime import datetime
 pipedir = str(Path.home())+'/.setisim/'
@@ -103,27 +104,39 @@ def get_functionnames(tree=None, modulfile=None, match='', classes=True):
 
 # -------------------------  Inspired from rPicard by @Michael Janssen (https://bitbucket.org/M_Janssen/picard)
 def pipeline_step(telescope='GMRT', dict=False):
-    steps,_help={},''
+    _help=''
     from setisim.lib import Lib
-    from setisim.metadata import ConfigStream
-    # cs=ConfigStream(folder=input_folder, inputfile=files)
-    # cs.read()
     l=Lib(None,'')
     l.solve=False
     l.run()
-    # print(l.steps)
     if dict: 
         return l.steps
     else:        
-        for i,k in enumerate(l.steps):_help += f"""{i}:{k}\n""" #:\t{','.join(v)}\n"""
+        for i,k in enumerate(l.steps):_help += f"""{i}:{k}\n"""
         return _help
 
 def first_run():
     """
     """
-    print("Please enter your monolithic casa directory (eg /path/to/casa-CASA-xxx-xxx-py3.xxx/bin/):")
-    
-    casadir=input()
+    readline.set_completer_delims('\t\n=')
+    readline.parse_and_bind("tab: complete") 
+    cp_txt,do       =   '','y'
+    casa_path       =   f"{pipedir}/casa_path.txt"
+    if Path(casa_path).exists():
+        with open(casa_path, "r") as cp:
+            cp_txt  =   cp.readlines()[0]
+
+    if cp_txt: 
+        casadir     =   cp_txt
+        print(f"There is a CASA path already written: {cp_txt}")
+        print(f"{c['c']} Are you sure you want to proceed overwriting?{c['x']}")
+        do          =   input("(y/n)")
+    if str(do).lower() in ["y", "yes"]:
+        print("Please enter your monolithic casa directory (eg /path/to/casa-CASA-xxx-xxx-py3.xxx/bin/):")
+               
+        casadir=input()
+        with open(casa_path, 'w') as o:
+            o.write(f"{casadir}/")
     try:
         subprocess.run([f"{casadir}/casa",'-v'],shell=False, stdout=subprocess.DEVNULL)
     except FileNotFoundError:
@@ -139,11 +152,16 @@ def first_run():
             casadir = Path(casadir)
     subprocess.run([f"{casadir}/casa",'-v'],shell=False, stdout=subprocess.DEVNULL)
     subprocess.run([f"{casadir}/mpicasa",'-h'],shell=False, stdout=subprocess.DEVNULL)
-    casa_path=f"{pipedir}/casa_path.txt"
-    with open(casa_path, 'w') as o:
-        o.write(f"{casadir}/")
-    print(f"Written casa_path : {casa_path}")
-
+    
+    print(f"casa_path : {casa_path}")
+    
+    print(f'{c["c"]}In order to use MPI please give the path to setisim repository downloaded from github...{c["x"]}')
+    print(f"\n{casadir}/pip3 install <input>")
+    setisim_rep     =   input("(Enter to skip)")
+    install_setisim  =   [f"{casadir}/pip3", "install", f"{setisim_rep}"]
+    install_out     =   subprocess.run(install_setisim, capture_output=True).stdout
+    
+    print(install_out)
 
 def exec_steps(params, steps, debug):
     """
@@ -190,11 +208,11 @@ def run_pipe(n_cores, casadir, setisimpath, passed_cmd_args):
 
     if cmd and setisimpath:
         subprocess.run(cmd, stderr=open(errlogf,"+a"))
-        proc = subprocess.Popen(['tail', '-n', '100', errlogf], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(['tail', '-n', '5', errlogf], stdout=subprocess.PIPE)
         lines = proc.stdout.read()
         print(lines.decode('utf-8'))
         if Path(casalogf).exists():
-            proc = subprocess.Popen(['tail', '-n', '100', casalogf], stdout=subprocess.PIPE)
+            proc = subprocess.Popen(['tail', '-n', '5', casalogf], stdout=subprocess.PIPE)
             lines = proc.stdout.read()
             print(lines.decode('utf-8'))
     
@@ -212,6 +230,7 @@ input_params.add_argument('-F', '--frequency',  type=float, help='input rest fre
 input_params.add_argument('-m', '--ms-file',  type=str,   help='measurement set(.MS) path')
 input_params.add_argument('-n', '--n-cores', type=int,   help='specify number of cores to use MPI', default=1)
 input_params.add_argument('-rc','--read-config',  type=str,   help='configuration file for pipeline run', default=Path.cwd(), metavar='CONFIG_FILE')
+input_params.add_argument('--iname', type=str,   help='imagename after tclean can be used with pipeline step for imaging.',)
 
 parser.add_argument('--pipe',help='pipeline mode',action='store_true')
 parser.add_argument('--casalogf',help='This file is used for storing logs from CASA task run')
@@ -283,7 +302,7 @@ def cli():
     if args.timerange   :   params['timerange'] =   timerange
     if args.seconds     :   params['seconds']   =   args.seconds
     if args.frequency   :   params['frequency'] =   args.frequency
-
+    if args.iname       :   params['iname']     =   args.iname
     if args.version:
         print(version('setisim'))
     
@@ -335,8 +354,20 @@ def cli():
         
         elif args.frequency:
             steps = [8,9,10,11]
-
         exec_steps(params, steps, args.debug)
+        # ret, params["vis"]       =   exec_steps(params, steps, args.debug)
+        # ret='0'
+        # if ret: 
+        #     if args.seconds or args.frequency or args.timerange:
+        #         """
+        #         Imaging step is called latter with -n 2
+        #         """
+        #         casadir,setisimpath,status,msg          =   _allvitals_check(args)
+        #         passed_cmd_args                         =   ["--iname", ret, "-m", params["vis"], "-p", "12"]
+                
+        #         run_pipe(2,casadir,setisimpath, passed_cmd_args)
+            
+    
 # from pyinstrument import Profiler
 # with Profiler(interval=0.1) as profiler:     
 # profiler.print()

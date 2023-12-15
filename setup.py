@@ -5,7 +5,7 @@ with open("README.md", "r") as rdme:
 
 setup(
     name = 'setisim',
-    version = '0.1.0',
+    version = '0.2.0',
     url='https://github.com/avialxee/setsim',
     author='Avinash Kumar',
     author_email='avialxee@gmail.com',
