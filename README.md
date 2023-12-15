@@ -102,3 +102,9 @@ setisim --seconds 509 -n 2 -m calibrated_data.ms
 ```bash
 setisim --cc
 ```
+
+5) Post imaging create image manually using pipeline step (i.e `-p 12`)
+
+```bash
+setisim -p 12 --iname calibrated_data_gscale_1_2min -n 2
+```
