@@ -14,13 +14,12 @@ pip install -e .[dev]
 ```
 
 # Usage: 
->[Under Progress]
+
 
 ```bash
-usage: setisim [-f FITSFILE] [-t TIMERANGE] [-sec SECONDS] [-F FREQUENCY]
-               [-m MS_FILE] [-n N_CORES] [-rc CONFIG_FILE] [--pipe]
-               [--casalogf CASALOGF] [--fitstovis] [--calibrate] [--cc]
-               [--bind] [--debug] [-h] [-v] [-p {1,2,3...}]
+usage: setisim [-f FITSFILE] [-t TIMERANGE] [-sec SECONDS] [-F FREQUENCY] [-m MS_FILE] [-n N_CORES] [-rc CONFIG_FILE]
+               [--iname INAME] [--pipe] [--casalogf CASALOGF] [--fitstovis] [--calibrate] [--cc] [--bind] [--debug] [-h] [-v]
+               [-p {1,2,3...}]
 
 pipeline for SETI Synthesis Imaging
 
@@ -45,6 +44,7 @@ input parameters:
                         specify number of cores to use MPI
   -rc CONFIG_FILE, --read-config CONFIG_FILE
                         configuration file for pipeline run
+  --iname INAME         imagename after tclean can be used with pipeline step for imaging.
 
 operations:
   --fitstovis           convert fits to visfile, requires --ms-file and --fitsfile
@@ -66,6 +66,39 @@ pipeline_step:
                         6:diagnostics
                         7:gen_flagsummary
                         8:split_field
-                        9:selfcal_setmodel
-                        10:selfcal_iter
+                        9:continuum_subtraction
+                        10:selfcal_setmodel
+                        11:selfcal_iter
+                        12:genimg
+```
+
+# Examples
+
+1) For imaging around 781.1MHz
+
+```bash
+
+setisim --frequency 781.1 -n 2 -m calibrated_data.ms
+
+```
+
+2) For imaging around timerange
+
+```bash
+
+setisim --timerange 12:14:00.00~12:14:60.00 -n 2 -m calibrated_data.ms
+
+```
+
+3) Imaging around timerange using timestamp 509s
+
+```bash
+
+setisim --seconds 509 -n 2 -m calibrated_data.ms
+```
+
+4) Create Configuration file for giving input values from default values
+
+```bash
+setisim --cc
 ```

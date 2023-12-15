@@ -362,7 +362,7 @@ class  Lib:
         from setisim.imaging import genpng
         if not self.itername : 
             self.itername = self.config.iname
-        for itype in ["image"]#, "residual"]:
+        for itype in ["image"]: #, "residual"]:
         
             imgname=f"{self.config.imagingdumps}/{self.itername}.{itype}.tt0"
             out                 =   f"{Path(self.config.vis).stem}_{self.itername}_{itype}"
