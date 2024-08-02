@@ -11,7 +11,7 @@ from setisim.util import np, save_fig        # type: ignore
 from pyvirtualdisplay import Display
 from setisim.util import tolist
 from casatasks import tclean, imstat
-from casatools import image as IA, msmetadata
+from casatools import image as IA
 old_matplotlib      = False
 if int(matplotlib.__version__.split('.')[1])<=3:
     old_matplotlib  = True
@@ -129,6 +129,8 @@ def tclean_continuum_image(science_vis_cont, imagename, suffix='', norm_max=None
 def plotd(plotms, config, z=1.5, xax=[], yax=[], model=False, **kwargs):
     """
     for quick views you can select small timerange and averaged channel etc.
+    TODO setisim 0.3 Milestone : A new tool is developed for plotting data without the casaplotms tool in VASCO, 
+    a dependency on VASCO can be helpful.
     """
     
 
@@ -272,7 +274,7 @@ def tclean_model(vis, imagename, imsize=900, cell='1.0arcsec', threshold='1.0mJy
     return imagename
 
 def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold='0.5mJy', parallel=False, niter=3000):
-    tclean(                     
+    return tclean(                     
                                 vis             =   vis, 
                                 imagename       =   imagename,
                                 selectdata      =   True,
@@ -301,44 +303,44 @@ def tclean_selfcal_iter(vis, imagename, imsize=900, cell='1.0arcsec', threshold=
                                 interactive     =   False
             )
     
-def fast_spectral_image(vis, cvis, timerange, rest_freq , suffix):
-    os.system(f'rm -rf {cvis}')
-    split(calvis, cvis, timerange=timerange, datacolumn='data')
-    uvcontsub(cvis, field='0',
-          fitspw=f'0:{rest_freq}', excludechans=True,
-          fitorder=1,
-          want_cont=True,
-         )
-    science_vis=cvis+'.contsub'
-    science_vis_cont=cvis+'.cont'
-    norm_max=tclean_continuum_image(science_vis_cont, science_vis_cont+'.cimage', suffix=suffix+'.cont')
-    tclean_spectral_image(science_vis, science_vis+'.cimage', rest_freq, suffix=suffix+'.cube', norm_max=norm_max)
+# def fast_spectral_image(vis, cvis, timerange, rest_freq , suffix):
+#     os.system(f'rm -rf {cvis}')
+#     split(calvis, cvis, timerange=timerange, datacolumn='data')
+#     uvcontsub(cvis, field='0',
+#           fitspw=f'0:{rest_freq}', excludechans=True,
+#           fitorder=1,
+#           want_cont=True,
+#          )
+#     science_vis=cvis+'.contsub'
+#     science_vis_cont=cvis+'.cont'
+#     norm_max=tclean_continuum_image(science_vis_cont, science_vis_cont+'.cimage', suffix=suffix+'.cont')
+#     tclean_spectral_image(science_vis, science_vis+'.cimage', rest_freq, suffix=suffix+'.cube', norm_max=norm_max)
 
 
-def selfcal_all(calibrated_csource, rest_freq):
+# def selfcal_all(calibrated_csource, rest_freq):
     
     
-    calibrated_target=ctarget_stem+f'_field{s["targetf"]}.MS'
-    rest_freq= '599.934021MHz'
+#     calibrated_target=ctarget_stem+f'_field{s["targetf"]}.MS'
+#     rest_freq= '599.934021MHz'
 
-    split(calibrated_csource, calibrated_target, datacolumn='data', field=s['targetf'])
-    model_dict=selfcal_model(calibrated_target)
-    t_duration = 12 # total time duration (seconds)
-    t_step = 12 # t_step seconds for imaging as time step in between the total duration
-    sctarget={}
-    sctarget['sc3'],sctarget['sc3_t']= model_dict['model_vis'], model_dict['model_vis']+'_spectral_image'
+#     split(calibrated_csource, calibrated_target, datacolumn='data', field=s['targetf'])
+#     model_dict=selfcal_model(calibrated_target)
+#     t_duration = 12 # total time duration (seconds)
+#     t_step = 12 # t_step seconds for imaging as time step in between the total duration
+#     sctarget={}
+#     sctarget['sc3'],sctarget['sc3_t']= model_dict['model_vis'], model_dict['model_vis']+'_spectral_image'
     
-    for i in range(5,t_duration,t_step): # 
-        k1 =i
-        k2 =k1+t_step
-        sctarget['sc3_tk']=sctarget['sc3_t']+f'{k1}_{k2}.MS'
-        timerange=f'15:04:{k1:02d}.8~15:04:{k2:02d}.8'
-        print(timerange)    
-        print(sctarget['sc3_tk'])
-        try:
-            fast_spectral_image(sctarget['sc3'], sctarget['sc3_tk'], str(timerange), rest_freq , suffix=f'{k2}')
-        except Exception as e:
-            print(f'{e}')
-            pass
-    tclean_continuum_image(model_dict['model_vis'], 'whole_continuum', '_contonly')
+#     for i in range(5,t_duration,t_step): # 
+#         k1 =i
+#         k2 =k1+t_step
+#         sctarget['sc3_tk']=sctarget['sc3_t']+f'{k1}_{k2}.MS'
+#         timerange=f'15:04:{k1:02d}.8~15:04:{k2:02d}.8'
+#         print(timerange)    
+#         print(sctarget['sc3_tk'])
+#         try:
+#             fast_spectral_image(sctarget['sc3'], sctarget['sc3_tk'], str(timerange), rest_freq , suffix=f'{k2}')
+#         except Exception as e:
+#             print(f'{e}')
+#             pass
+#     tclean_continuum_image(model_dict['model_vis'], 'whole_continuum', '_contonly')
 
