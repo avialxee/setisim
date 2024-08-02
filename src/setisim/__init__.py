@@ -236,7 +236,7 @@ parser.add_argument('--pipe',help='pipeline mode',action='store_true')
 parser.add_argument('--casalogf',help='This file is used for storing logs from CASA task run')
 
 operations=parser.add_argument_group('operations',)
-operations.add_argument('--fitstovis',  action='store_true',  help='convert fits to visfile, requires --ms-file and --fitsfile', )
+operations.add_argument('--fitstoms',  action='store_true',  help='convert fits to measurement set file, requires --ms-file and --fitsfile', )
 operations.add_argument('--calibrate',  action='store_true',  help='calibrate the visibility file', )
 operations.add_argument('--cc',         action='store_true',  help='create configuration file from default values',)
 operations.add_argument('--bind',       action='store_true',  help='bind setisim with your casa path',)
@@ -293,7 +293,7 @@ def _args_sanitycheck(args):
 
 def cli():
     args=parser.parse_args()
-    _args_sanitycheck
+    _args_sanitycheck(args)
     timerange           =   args.timerange
     n_cores             =   args.n_cores
     fitsfile            =   args.fitsfile
@@ -328,11 +328,13 @@ def cli():
     
     elif args.pipe:
         steps=None
-        if args.fitstovis:
-            from casatasks import importgmrt
+        if args.fitstoms:
+            from casatasks import importgmrt, importuvfits
             if Path(fitsfile).exists():
                 os.system(f'rm -rf {params["vis"]}')
-                importgmrt(fitsfile=fitsfile, vis=params['vis'])
+                if 'telecope' in params:
+                    if 'gmrt' in params['telescope'].lower(): importgmrt(fitsfile=fitsfile, vis=params['vis'])
+                    else: importuvfits(fitsfile=fitsfile, vis=params['vis'])
         
         
         elif args.pipe_step: 

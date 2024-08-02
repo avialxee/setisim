@@ -1,6 +1,7 @@
 from casatools import ms, msmetadata, table
 from setisim import read_inputfile
 from setisim import Path
+import json
 
 """
 TODO:
@@ -86,7 +87,8 @@ class MetaData(ConfigStream):
     Supposed to live longer than the runtime as a json based metadata file.
     """
     def __init__(self, *args, **kwargs):
-          pass
+          self.metafile             =   ''
+          self.metad                =   self.__dict__ # TODO : test implementation
      
     def dict_fromlistobs(self, listobs_dict):   # TODO listobs_dict = listobs(vis, listfile=False, verbose=True)
         fields                      =   {k.replace('field_', ''):{'name':v['name']} for k,v in listobs_dict.items() if 'field_' in k}
@@ -98,9 +100,9 @@ class MetaData(ConfigStream):
         msmd.open(self.config.vis)
         nchan = msmd.nchan(0)
         msmd.done()
-    
-    def save_json(self):
+
+    def save_metafile(self):
         """
-        TODO: a retrievable json 
+        creates a json based metafile with the runtime ConfigStream
         """
-        pass
+        with open(str(self.metafile), 'w') as mf: json.dump(self.metad, mf)
