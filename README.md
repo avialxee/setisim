@@ -1,13 +1,18 @@
 # setisim
-a python based package for Synthesis Imaging using CASA for SETI. Spectral Imaging for uGMRT data
+A python based package for Synthesis Imaging using CASA for SETI. Spectral Imaging for uGMRT data
 
 # Installation
 
+After downloading the repository and unzip (or clone) to the desired folder.
+
 ```bash
-pip install setisim
+cd setisim
+pip install .
 ```
 
 # Development
+
+Please report any bug or issues on Github.
 
 ```bash
 pip install -e .[dev]
